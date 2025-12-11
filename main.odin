@@ -7,9 +7,13 @@ import "core:strings"
 import "core:mem"
 import "base:runtime"
 
-InfoStruct :: struct {
+ProjectInfo :: struct {
     rootPath: ^string,
-    dtoDirectory: ^string
+    dtoDirectory: ^string,
+    ignoreDirectories: []string,
+    classesPrimitive: [dynamic]KotlinClass,
+    classesDynamic: [dynamic]KotlinClass,
+    classesExtends: [dynamic]KotlinClass,
 }
 
 allocString :: proc(value: string, destination: ^^string ) {
@@ -22,8 +26,12 @@ allocString :: proc(value: string, destination: ^^string ) {
 
 main :: proc() {
     dir := ".";
+    ignoreList := ""
     if len(os.args) > 1 {
         dir = os.args[1];
+    }
+    if len(os.args) > 2 {
+        ignoreList = os.args[2]
     }
     
     path, err := os.join_path({dir, "build.gradle.kts"}, context.allocator);
@@ -45,8 +53,15 @@ main :: proc() {
     buffer: [1024]u8;
     bufio.reader_init_with_buf(&reader, s, buffer[:]);
 
-    x := new(InfoStruct)
-    defer mem.free(x);
+    pInfo := new(ProjectInfo)
+    if(len(ignoreList) > 0) {
+        pInfo.ignoreDirectories = strings.split(ignoreList, "|")
+    }
+    prim := make([dynamic]KotlinClass); pInfo.classesPrimitive  = prim
+    dyn  := make([dynamic]KotlinClass); pInfo.classesDynamic    = dyn
+    ext  := make([dynamic]KotlinClass); pInfo.classesExtends    = ext
+
+    defer mem.free(pInfo);
 
     for {
         line, err := bufio.reader_read_string(&reader, '\n', context.allocator)
@@ -63,8 +78,8 @@ main :: proc() {
             return
         }
         if (strings.contains(line, "group = \"")) {
-            stringFindBetween(line, x)
-            if(x.rootPath == nil) {
+            stringFindBetween(line, pInfo)
+            if(pInfo.rootPath == nil) {
                 fmt.printfln("Could not extract group value")
                 return
             }
@@ -72,11 +87,11 @@ main :: proc() {
         }
         delete(line, context.allocator)
     }
-    findDto(dir, x)
-    enterFirstFile(x)
+    findDto(dir, pInfo)
+    parseKotlinFiles(pInfo)
 }
 
-stringFindBetween :: proc(line: string, info: ^InfoStruct) {
+stringFindBetween :: proc(line: string, info: ^ProjectInfo) {
     start := strings.index(line, `"`);
     if start >= 0 {
         start += 1;
@@ -90,7 +105,7 @@ stringFindBetween :: proc(line: string, info: ^InfoStruct) {
     }
 }
 
-findDto :: proc(startDir: string, infoStruct: ^InfoStruct) {
+findDto :: proc(startDir: string, infoStruct: ^ProjectInfo) {
     //Hard coded for kotlin project file structure
     projectDir := "/src/main/kotlin/"
     group, ok := strings.replace(infoStruct.rootPath^, ".", "/", -1, context.allocator)
@@ -114,17 +129,24 @@ findDto :: proc(startDir: string, infoStruct: ^InfoStruct) {
     }
 }
 
-enterFirstFile :: proc(infoStruct: ^InfoStruct) {
-    w := os.walker_create(infoStruct.dtoDirectory^)
+parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
+    w := os.walker_create(pInfo.dtoDirectory^)
     defer os.walker_destroy(&w)
 
     for info in os.walker_walk(&w) {
         if path, err := os.walker_error(&w); err != nil {
             continue
         }
+        if info.type == os.File_Type.Directory && wordContainsList(info.name, pInfo.ignoreDirectories){
+            os.walker_skip_dir(&w)
+            continue
+        }
+
         if info.type == os.File_Type.Regular && strings.has_suffix(info.name, ".kt") {
-            parseKotlin(info.fullpath)
-            break;
+            parseKotlin(info.fullpath, pInfo)
         }
     }
+    fmt.printfln("Primitive: %i", len(pInfo.classesPrimitive))
+    fmt.printfln("Dynamic: %i", len(pInfo.classesDynamic))
+    fmt.printfln("Extends: %i", len(pInfo.classesExtends))
 }

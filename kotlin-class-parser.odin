@@ -6,7 +6,7 @@ import "core:bufio"
 import "core:strings"
 import r "core:text/regex"
 
-parseKotlin :: proc(path: string) {
+parseKotlin :: proc(path: string, p: ^ProjectInfo) {
     f, open_err := os.open(path, os.File_Flags{.Read});
     if open_err != nil {
         fmt.printfln("Could not parse: %s", path)
@@ -22,59 +22,121 @@ parseKotlin :: proc(path: string) {
 
     // Finds class
         //Should also find interfaces
-    regex, err := r.create("\\b(?:class|interface)\\s+([A-Za-z_]\\w*)") //Captures class or interface name
+        // missing enums, might need to parse differently
+    regex_class, err := r.create(`\b(class|interface)\s+([A-Za-z_]\w*)\s*(?::\s*([A-Za-z_]\w*))?`) //Captures class or interface name
     if err != nil {
         return
-    }
-    
-    className: string
-    for {
-        line, err := bufio.reader_read_string(&reader, '\n', context.allocator)
-        if err != nil { //Special case fo EOF
-            if len(line) > 0 {
-                delete(line, context.allocator)
-            }
-            return
-        }
-        capture, success := r.match_and_allocate_capture(regex, line);
-        defer r.destroy_capture(capture)
-        if success {
-            className = capture.groups[1]
-            break
-        }
-            
-        delete(line, context.allocator)
-    }
-    
-    fields := make([dynamic]Field);
-    k := KotlinClass{
-        name = className,
-        extends = nil,
-        fields = fields,
-    }
-    collectedLines := make([dynamic]string)
-
-    for {
-        line, err := bufio.reader_read_string(&reader, '\n', context.allocator)
-        if err != nil { //Special case fo EOF
-            if len(line) > 0 {
-                delete(line, context.allocator)
-            }
-            return
-        }
-        append(&collectedLines, line)
-        if(strings.contains(line, ")")) {
-            break;
-        }
     }
 
     regex_field, err_regex := r.create(`\b(var|val)\s+([A-Za-z_]\w*)\s*:\s*([A-Za-z_][\w<>?]*)`)
     if err_regex != nil {
         return
     }
+    regex_end_impls, err_regex2 := r.create(`:\s*([A-Za-z_]\w*)`)
+    if err_regex2 != nil {
+        return
+    }
 
+    for {
+        ok := parseKotlinClass(&reader, regex_class, regex_field, regex_end_impls, p)
+        if (!ok) {
+            break;
+        }
+    }
+    
+}
+
+//Needs to cleanup if early exit
+parseKotlinClass :: proc(
+    reader: ^bufio.Reader, regex_class: 
+    r.Regular_Expression, regex_field: 
+    r.Regular_Expression, regex_end: 
+    r.Regular_Expression, 
+    p: ^ProjectInfo
+) -> bool {
+    className: string
+    classType: KotlinClassType
+    classExtends: ^string
+    isEOF := false;
+
+    for {
+        if(isEOF) {
+            return false
+        }
+        line, err := bufio.reader_read_string(reader, '\n', context.allocator)
+        defer delete(line, context.allocator)
+        if err != nil { //Special case fo EOF
+            if len(line) > 0 {
+                isEOF = true
+            } else {
+                return false
+            }
+        }
+        capture, success := r.match_and_allocate_capture(regex_class, line);
+        defer r.destroy_capture(capture)
+        if success {
+            switch capture.groups[1] {
+                case "class":
+                    classType = KotlinClassType.Class
+                case "interface":
+                    classType = KotlinClassType.Interface
+            }
+            className = capture.groups[2]
+            if(len(capture.groups) > 3) {
+                classExtends = &capture.groups[3]
+            }
+            break
+        }
+    }
+    
+    fields := make([dynamic]Field);
+    k := KotlinClass{
+        name = className,
+        extends = classExtends,
+        fields = fields,
+    }
+    collectedLines := make([dynamic]string)
+
+    for {
+        if(isEOF) {
+            return false
+        }
+        line, err := bufio.reader_read_string(reader, '\n', context.allocator)
+        defer delete(line, context.allocator)
+        if err != nil { //Special case fo EOF
+            if len(line) > 0 {
+                isEOF = true
+            } else {
+                return false
+            }
+        }
+        append(&collectedLines, line)
+        if(strings.contains(line, ")") || strings.contains(line, `}`)) {
+            capture, success := r.match_and_allocate_capture(regex_end, line);
+            defer r.destroy_capture(capture)
+            if(success) {
+                k.extends = &capture.groups[1]
+            }
+
+            break;
+        }
+    }
+
+    containsStruct := false;
+    extractKotlinFields(collectedLines[:], regex_field, &k, &containsStruct)
+    //printKotlinClass(k)
+    if(k.extends != nil) {
+        append(&p.classesExtends, k)
+    } else if (containsStruct) {
+        append(&p.classesDynamic, k)
+    } else {
+        append(&p.classesPrimitive, k)
+    }
+    return true
+}
+extractKotlinFields :: proc(collectedLines: []string, regex: r.Regular_Expression, k: ^KotlinClass, c: ^bool) {
     for l in collectedLines {
-        capture, success := r.match_and_allocate_capture(regex_field, l)
+        capture, success := r.match_and_allocate_capture(regex, l)
         defer r.destroy_capture(capture)
         if success {
             fieldName := capture.groups[2]
@@ -97,22 +159,25 @@ parseKotlin :: proc(path: string) {
                     kotlinType = KotlinType.Float
                 case "Boolean":
                     kotlinType = KotlinType.Bool
-                default: 
+                case: //default
                     if strings.starts_with(typeName, "List<") && strings.ends_with(typeName, ">") { //Nested type is not struct, struct is when a costume type. Here it needs to read and parse it
                         kotlinType = KotlinType.List
                         sub := &KotlinTypeDefinition{}
-                        sub.type = KotlinType.Struct
+                        sub.kotlinType = KotlinType.Struct //This is wrong
                         sub.name = typeName[5:len(typeName)-1]
                         sub.nullable = false
                         subType = sub
                     } else { //Look at this assumption
+                        if(!c^){
+                            c^ = true;
+                        }
                         kotlinType = KotlinType.Struct
                     }
             }
             field := Field{
                 name = fieldName,
-                type = KotlinTypeDefinition{
-                    type = kotlinType,
+                fieldType = KotlinTypeDefinition{
+                    kotlinType = kotlinType,
                     name = typeName,
                     nullable = nullable,
                     sub_type = subType,
@@ -121,5 +186,4 @@ parseKotlin :: proc(path: string) {
             append(&k.fields, field)
         }
     }
-    printKotlinClass(k)
 }
