@@ -19,6 +19,13 @@ ProjectInfo :: struct {
     classesExtends: [dynamic]ast.KotlinClass,
 }
 
+KotlinSortResult :: enum {
+    PrimitivesOnly,
+    ContainsStructs,
+    Impl,
+}
+
+
 allocString :: proc(value: string, destination: ^^string ) {
     temp := new(string)
     bytes := make([]u8, len(value))
@@ -156,9 +163,8 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
             l := lexer.new_lexer(it)
             p := parser.new_parser(l)
             ktClasses := parser.parse_file(p)
-            fmt.printfln("Amount of classes: %i", len(ktClasses.classes))
             for kt in ktClasses.classes {
-                printKotlinClass(kt^)
+                generateTypescript(kt^)
             }
         }
     }

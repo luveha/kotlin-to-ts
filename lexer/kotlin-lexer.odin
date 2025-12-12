@@ -23,6 +23,8 @@ LBRACKET :: "["
 RBRACKET :: "]"
 COLON :: ":"
 QMARK :: "?"
+DASH :: "/"
+STAR :: "*"
 
 // Keywords
 DATA :: "Data"
@@ -36,6 +38,9 @@ OVERRIDE :: "Override"
 STRING :: "String"
 BOOL :: "bool"
 
+//Kotlin nested types
+LIST :: "List"
+
 keywords := map[string]TokenType {
 	"data"			= DATA,
     "interface"		= INTERFACE,
@@ -46,6 +51,8 @@ keywords := map[string]TokenType {
 	//Kotlin prims
 	"String"		= STRING,
 	"bool"			= BOOL,
+	//Kotlin nested types
+	"List"			= LIST,
 }
 
 TokenType :: distinct string
@@ -136,6 +143,12 @@ next_token :: proc(l: ^Lexer) -> Token {
 	case ',':
 		tok.type = COMMA
 		tok.literal = ","
+		case '/':
+			tok.type = DASH
+			tok.literal = "/"
+		case '*':
+			tok.type = STAR
+			tok.literal = "*"
 	case:
 		if is_letter(l.ch) {
 			tok.literal = read_identifier(l)
@@ -192,16 +205,56 @@ is_digit :: proc(ch: byte) -> bool {
 	return '0' <= ch && ch <= '9'
 }
 
-skip_whitespace :: proc(l: ^Lexer) {
-	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
-		read_char(l)
-	}
-}
-
 peek_char :: proc(l: ^Lexer) -> byte {
 	if l.read_position >= len(l.input) {
 		return 0
 	} else {
 		return l.input[l.read_position]
 	}
+}
+
+skip_single_line_comment :: proc(l: ^Lexer) {
+    for l.ch != '\n' && l.ch != 0 {
+        read_char(l)
+    }
+}
+
+skip_multi_line_comment :: proc(l: ^Lexer) {
+    comment_depth := 1
+
+    for comment_depth > 0 && l.ch != 0 {
+        read_char(l)
+        if l.ch == '*' && peek_char(l) == '/' {
+            read_char(l)
+            read_char(l)
+            comment_depth -= 1
+        } else if l.ch == '/' && peek_char(l) == '*' {
+            read_char(l)
+            read_char(l)
+            comment_depth += 1
+        }
+    }
+}
+
+skip_whitespace :: proc(l: ^Lexer) {
+    for {
+        if l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+            read_char(l)
+        } else if l.ch == '/' {
+            next_ch := peek_char(l)
+            if next_ch == '/' {
+                read_char(l)
+                read_char(l)
+                skip_single_line_comment(l)
+            } else if next_ch == '*' {
+                read_char(l)
+                read_char(l)
+                skip_multi_line_comment(l)
+            } else {
+                break
+            }
+        } else {
+            break
+        }
+    }
 }
