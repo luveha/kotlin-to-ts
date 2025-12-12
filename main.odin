@@ -149,4 +149,15 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
     fmt.printfln("Primitive: %i", len(pInfo.classesPrimitive))
     fmt.printfln("Dynamic: %i", len(pInfo.classesDynamic))
     fmt.printfln("Extends: %i", len(pInfo.classesExtends))
+    /*
+    for c in pInfo.classesPrimitive {
+        printKotlinClass(c)
+    }
+    for c in pInfo.classesDynamic {
+        printKotlinClass(c)
+    }
+    for c in pInfo.classesExtends {
+        printKotlinClass(c)
+    }
+        */
 }

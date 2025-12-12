@@ -29,6 +29,34 @@ kotlinTypeToString :: proc(t: KotlinType) -> string {
     return ""
 }
 
+stringToKotlinType :: proc(s: string) -> ^KotlinType {
+    result := new(KotlinType);
+    switch s {
+        case "String":
+            result^ = KotlinType.String
+
+        case "Int":
+            result^ = KotlinType.Int
+
+        case "Float":
+            result^ = KotlinType.Float
+
+        case "Bool":
+            result^ = KotlinType.Bool
+
+        case "List":
+            result^ = KotlinType.List
+
+        case "TypeParam":
+            result^ = KotlinType.TypeParam
+
+        // Unknown types become Struct
+        case:
+            result^ = KotlinType.Struct
+    }
+    return result
+}
+
 kotlinClassTypeToString :: proc(t: KotlinClassType) -> string{
     switch t {
         case .Class: return "Class"
@@ -49,9 +77,10 @@ printKotlinTypeDefinition :: proc(k: ^KotlinTypeDefinition, indent: int) {
     fmt.printfln("%sType: %s%s", make_indent(indent), kotlinTypeToString(k.kotlinType), nullSuffix)
     fmt.printfln("%sName: %s", make_indent(indent), k.name)
     fmt.printfln("%sIs nullable: %t", make_indent(indent), k.nullable)
-    if k.sub_type != nil {
+    for i in 0..=len(k.type_params)-1 {
+        f := k.type_params[i]
         fmt.printfln("%sSubType:", make_indent(indent))
-        printKotlinTypeDefinition(k.sub_type, indent + 1)
+        printKotlinTypeDefinition(&f, indent + 1)
     }
 }
 
@@ -64,10 +93,17 @@ printKotlinClass :: proc(k: KotlinClass) {
 
     implements := "None"
     if k.extends != nil {
-        implements = k.extends^
+        implements = k.extends.name
     }
     fmt.printfln("%sExtends: %s", oneIndent, implements)
     fmt.printfln("%sClass Type: %s", oneIndent, kotlinClassTypeToString(k.classType))
+
+    fmt.printfln("%sType Params:", oneIndent)
+    fmt.printfln("%s[", oneIndent)
+    for t in k.type_params {
+        fmt.printfln("%s Type: %s", twoIndent, t)
+    }
+    fmt.printfln("%s]", oneIndent)
 
     fmt.printfln("%sFields:", oneIndent)
     fmt.printfln("%s[", oneIndent)

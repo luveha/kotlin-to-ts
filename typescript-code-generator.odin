@@ -16,7 +16,7 @@ generateTypescript :: proc(k: KotlinClass) {
     strings.write_string(&builder, k.name)
     
     if(k.extends != nil) {
-        strings.write_string(&builder, k.extends^)
+        strings.write_string(&builder, k.extends^.name)
     }
     strings.write_string(&builder, " {{\n")
 

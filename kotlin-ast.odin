@@ -14,7 +14,7 @@ KotlinTypeDefinition :: struct {
     kotlinType: KotlinType,
     name: string,
     nullable: bool,
-    sub_type: ^KotlinTypeDefinition
+    type_params: [dynamic]KotlinTypeDefinition,
 }
 
 Field :: struct {
@@ -31,6 +31,7 @@ KotlinClassType :: enum {
 KotlinClass :: struct {
     name: string,
     classType: KotlinClassType,
-    extends: ^string,
+    type_params: []string, 
+    extends: ^KotlinTypeDefinition,
     fields: [dynamic]Field,
 }
