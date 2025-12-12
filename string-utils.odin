@@ -2,10 +2,8 @@ package main
 
 import "core:strings"
 import "core:fmt"
-
-make_indent :: proc(indent: int) -> string {
-    return strings.repeat("  ", indent)
-}
+import "/ast"
+import "/lexer"
 
 wordContainsList :: proc(word: string, list: []string) -> bool {
     for w in list {
@@ -16,8 +14,14 @@ wordContainsList :: proc(word: string, list: []string) -> bool {
     return false;
 }
 
-kotlinTypeToString :: proc(t: KotlinType) -> string {
-    switch t {
+make_indent :: proc(indent: int) -> string {
+    return strings.repeat("  ", indent)
+}
+
+
+
+kotlinTypeToString :: proc(t: ^ast.KotlinType) -> string {
+    switch t^ {
         case .String: return "String"
         case .Int: return "Int"
         case .Float: return "Float"
@@ -29,35 +33,7 @@ kotlinTypeToString :: proc(t: KotlinType) -> string {
     return ""
 }
 
-stringToKotlinType :: proc(s: string) -> ^KotlinType {
-    result := new(KotlinType);
-    switch s {
-        case "String":
-            result^ = KotlinType.String
-
-        case "Int":
-            result^ = KotlinType.Int
-
-        case "Float":
-            result^ = KotlinType.Float
-
-        case "Bool":
-            result^ = KotlinType.Bool
-
-        case "List":
-            result^ = KotlinType.List
-
-        case "TypeParam":
-            result^ = KotlinType.TypeParam
-
-        // Unknown types become Struct
-        case:
-            result^ = KotlinType.Struct
-    }
-    return result
-}
-
-kotlinClassTypeToString :: proc(t: KotlinClassType) -> string{
+kotlinClassTypeToString :: proc(t: ast.KotlinClassType) -> string{
     switch t {
         case .Class: return "Class"
         case .Interface: return "Interface"
@@ -66,7 +42,7 @@ kotlinClassTypeToString :: proc(t: KotlinClassType) -> string{
     return ""
 }
 
-printKotlinTypeDefinition :: proc(k: ^KotlinTypeDefinition, indent: int) {
+printKotlinTypeDefinition :: proc(k: ^ast.KotlinTypeDefinition, indent: int) {
     if k == nil {
         return
     }
@@ -74,7 +50,7 @@ printKotlinTypeDefinition :: proc(k: ^KotlinTypeDefinition, indent: int) {
     if k.nullable {
         nullSuffix = "?"
     }
-    fmt.printfln("%sType: %s%s", make_indent(indent), kotlinTypeToString(k.kotlinType), nullSuffix)
+    fmt.printfln("%sType: %s%s", make_indent(indent), kotlinTypeToString(&k.kotlinType), nullSuffix)
     fmt.printfln("%sName: %s", make_indent(indent), k.name)
     fmt.printfln("%sIs nullable: %t", make_indent(indent), k.nullable)
     for i in 0..=len(k.type_params)-1 {
@@ -84,7 +60,7 @@ printKotlinTypeDefinition :: proc(k: ^KotlinTypeDefinition, indent: int) {
     }
 }
 
-printKotlinClass :: proc(k: KotlinClass) {
+printKotlinClass :: proc(k: ast.KotlinClass) {
     fmt.println("kotlinClass:\n{")
     oneIndent := make_indent(1)
     twoIndent := make_indent(2)
@@ -119,7 +95,7 @@ printKotlinClass :: proc(k: KotlinClass) {
     fmt.println("},")
 }
 
-kotlinTypeToTypescriptType :: proc(t: KotlinTypeDefinition) -> string {
+kotlinTypeToTypescriptType :: proc(t: ast.KotlinTypeDefinition) -> string {
     builder := strings.builder_make()
     switch t.kotlinType {
         case .String:

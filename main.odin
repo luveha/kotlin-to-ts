@@ -6,14 +6,17 @@ import "core:bufio"
 import "core:strings"
 import "core:mem"
 import "base:runtime"
+import "ast"
+import "lexer"
+import "parser"
 
 ProjectInfo :: struct {
     rootPath: ^string,
     dtoDirectory: ^string,
     ignoreDirectories: []string,
-    classesPrimitive: [dynamic]KotlinClass,
-    classesDynamic: [dynamic]KotlinClass,
-    classesExtends: [dynamic]KotlinClass,
+    classesPrimitive: [dynamic]ast.KotlinClass,
+    classesDynamic: [dynamic]ast.KotlinClass,
+    classesExtends: [dynamic]ast.KotlinClass,
 }
 
 allocString :: proc(value: string, destination: ^^string ) {
@@ -57,9 +60,9 @@ main :: proc() {
     if(len(ignoreList) > 0) {
         pInfo.ignoreDirectories = strings.split(ignoreList, "|")
     }
-    prim := make([dynamic]KotlinClass); pInfo.classesPrimitive  = prim
-    dyn  := make([dynamic]KotlinClass); pInfo.classesDynamic    = dyn
-    ext  := make([dynamic]KotlinClass); pInfo.classesExtends    = ext
+    prim := make([dynamic]ast.KotlinClass); pInfo.classesPrimitive  = prim
+    dyn  := make([dynamic]ast.KotlinClass); pInfo.classesDynamic    = dyn
+    ext  := make([dynamic]ast.KotlinClass); pInfo.classesExtends    = ext
 
     defer mem.free(pInfo);
 
@@ -143,7 +146,20 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
         }
 
         if info.type == os.File_Type.Regular && strings.has_suffix(info.name, ".kt") {
-            parseKotlin(info.fullpath, pInfo)
+            data, okFile := os.read_entire_file_from_path(info.fullpath, context.allocator)
+            if okFile != nil {
+                // could not read file
+                return
+            }
+            //defer delete(data, context.allocator)
+            it := string(data)
+            l := lexer.new_lexer(it)
+            p := parser.new_parser(l)
+            ktClasses := parser.parse_file(p)
+            fmt.printfln("Amount of classes: %i", len(ktClasses.classes))
+            for kt in ktClasses.classes {
+                printKotlinClass(kt^)
+            }
         }
     }
     fmt.printfln("Primitive: %i", len(pInfo.classesPrimitive))

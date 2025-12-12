@@ -2,7 +2,7 @@ package main
 
 import "core:strings"
 import "core:fmt"
-
+/*
 generateTypescript :: proc(k: KotlinClass) {
     builder := strings.builder_make()
     
@@ -30,3 +30,4 @@ generateTypescript :: proc(k: KotlinClass) {
     }
     fmt.printfln(strings.to_string(builder))
 }
+    */
