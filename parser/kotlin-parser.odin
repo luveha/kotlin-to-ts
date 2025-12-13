@@ -183,13 +183,16 @@ parse_type_definition :: proc(p: ^Parser) -> ast.KotlinTypeDefinition {
     def: ast.KotlinTypeDefinition = {}
     if(p.cur_token.type == lexer.LIST) {
         next_token(p)
+
         if(p.cur_token.type != lexer.LT) {
             return ast.KotlinTypeDefinition{}
         }
         next_token(p)
+
         if(p.cur_token.type != lexer.IDENT) {
             return ast.KotlinTypeDefinition{}
         }
+        
         def.kotlinType = ast.KotlinType.List
         def.name = strings.clone(p.cur_token.literal)
         next_token(p)
@@ -222,7 +225,7 @@ parse_type_definition :: proc(p: ^Parser) -> ast.KotlinTypeDefinition {
     return def
 }
 
-parse_field :: proc(p: ^Parser) -> ^ast.Field {
+parse_field :: proc(p: ^Parser, skip_save := false) -> ^ast.Field {
     field := new(ast.Field)
 
     next_token(p)
@@ -254,6 +257,16 @@ parse_field :: proc(p: ^Parser) -> ^ast.Field {
     field.fieldType = parse_type_definition(p)
     next_token(p)
 
+    if skip_save {
+        //Not the cleanest logic since it makes and then are freeing it
+        free(raw_data(field.name))
+        if field.fieldType.name != "" {
+            free(raw_data(field.fieldType.name))
+        }
+        free(field)
+        return nil
+    }
+
     return field
 }
 
@@ -263,6 +276,9 @@ parse_content :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
     for {
         if p.cur_token.type == lexer.OVERRIDE {
             next_token(p)
+            parse_field(p,true)
+            skip_optional(p)
+            continue
         }
 
         if p.cur_token.type == lexer.RPAREN || p.cur_token.type == lexer.RBRACE {
@@ -286,13 +302,7 @@ parse_content :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
         }
         append(&kt.fields, field)
 
-        //Skips these tokens
-        if p.cur_token.type == lexer.COMMA {
-            next_token(p)
-        } 
-        if p.cur_token.type == lexer.SEMICOLON {
-            next_token(p)
-        }
+        skip_optional(p)
     }
 }
 
@@ -305,18 +315,21 @@ peek_token_is :: proc(p: ^Parser, t: lexer.TokenType) -> bool {
 	return p.peek_token.type == t
 }
 
+skip_optional :: proc(p: ^Parser) {
+    if p.cur_token.type == lexer.COMMA {
+        next_token(p)
+    } 
+    if p.cur_token.type == lexer.SEMICOLON {
+        next_token(p)
+    }
+}
+
 //Utils
 is_kotlin_primitive :: proc(p: lexer.Token) -> bool {
-    switch p.type {
-        case lexer.STRING:
+    for prim in ast.KOTLIN_PRIMITIVES {
+        if prim.is_lexer_keyword && string(p.type) == prim.lexer_token_name {
             return true
-        case lexer.BOOL:
-            return true
-        case lexer.LIST:
-            return true
-        case lexer.DATE:
-            return true
-        case:
-            return false
+        }
     }
+    return false
 }

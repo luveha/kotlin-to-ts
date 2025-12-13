@@ -7,33 +7,60 @@ import "ast"
 generateTypescript :: proc(k: ast.KotlinClass) {
     builder := strings.builder_make()
     
+    is_type_alias := len(k.fields) == 0 && k.extends != nil
+
+    if(is_type_alias) {
+        generate_type_alias(&builder, k)
+    } else {
+        generate_interface(&builder, k)
+    }
+    
+    fmt.printfln(strings.to_string(builder))
+}
+
+generate_export_type :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
+    // This is made under the assumption that only classes can be received in ts since no instance of an interface can be created and sent
     switch k.classType {
-        // This is made under the assumption that only classes can be received in ts since no instance of an interface can be created and sent
-        case .Class: strings.write_string(&builder, "export ")
-        case .Interface:
+        case .Class: strings.write_string(b, "export ")
+        case .Interface: strings.write_string(b, "export ")
         case .Enum:
     }
-    strings.write_string(&builder, "interface ")
-    strings.write_string(&builder, k.name)
-    generateGenerics(&builder, k.type_params)
+}
+
+generate_interface :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
+    strings.write_string(b, "interface ")
+    strings.write_string(b, k.name)
+    generateGenerics(b, k.type_params)
 
     if(k.extends != nil) {
-        strings.write_string(&builder, " extends ")
-        strings.write_string(&builder, k.extends^.name)
-        generateGenerics(&builder, k.extends.type_params)
+        strings.write_string(b, " extends ")
+        strings.write_string(b, k.extends^.name)
+        generateGenerics(b, k.extends.type_params)
     }
-    strings.write_string(&builder, " {{\n")
+    strings.write_string(b, " {{\n")
 
     oneIndent := make_indent(1)
     for t in k.fields {
-        strings.write_string(&builder, oneIndent)
-        strings.write_string(&builder, t.name)
-        strings.write_string(&builder, ": ")
-        strings.write_string(&builder, kotlinTypeToTypescriptType(t.fieldType))
-        strings.write_string(&builder, ";\n")
+        strings.write_string(b, oneIndent)
+        strings.write_string(b, t.name)
+        strings.write_string(b, ": ")
+        strings.write_string(b, generate_type(t.fieldType))
+        strings.write_string(b, ";\n")
     }
-    strings.write_string(&builder, "}\n")
-    fmt.printfln(strings.to_string(builder))
+    strings.write_string(b, "}\n")
+}
+
+generate_type_alias :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
+    generate_export_type(b, k)
+
+    strings.write_string(b, "type ")
+    strings.write_string(b, k.name)
+    generateGenerics(b, k.type_params)
+    strings.write_string(b, " = ")
+    strings.write_string(b, k.extends^.name)
+    generateGenerics(b, k.extends.type_params)
+    strings.write_string(b, ";\n")
+
 }
 
 generateGenerics :: proc(b: ^strings.Builder, t_params: [dynamic]string) {
@@ -44,4 +71,31 @@ generateGenerics :: proc(b: ^strings.Builder, t_params: [dynamic]string) {
         }
         strings.write_string(b, ">")
     }
+}
+
+generate_type :: proc(t: ast.KotlinTypeDefinition) -> string {
+    builder := strings.builder_make()
+    switch t.kotlinType {
+        case .String:
+            strings.write_string(&builder, "string")
+        case .Int, .Float:
+            strings.write_string(&builder, "number")
+        case .Bool:
+            strings.write_string(&builder, "boolean")
+        case .Struct:
+            strings.write_string(&builder, t.name)
+        case .List:
+            strings.write_string(&builder, t.name)
+            strings.write_string(&builder, "[]")
+        case .Date:
+            strings.write_string(&builder, "Date")
+        case .TypeParam:
+            strings.write_string(&builder, t.name) 
+    }
+
+    if t.nullable {
+        strings.write_string(&builder, " | null")
+    }
+
+    return strings.to_string(builder)   
 }

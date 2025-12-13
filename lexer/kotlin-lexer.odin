@@ -2,6 +2,7 @@
 package lexer
 
 import "core:fmt"
+import "../ast"
 
 ILLEGAL :: "ILLEGAL"
 EOF :: "EOF"
@@ -35,28 +36,33 @@ VAR :: "var"
 OVERRIDE :: "Override"
 
 //Kotlin class prims
-STRING :: "String"
-BOOL :: "bool"
+STRING :: "STRING"
+BOOL :: "BOOL"
 
 //Kotlin types
-DATE :: "Date"
+DATE :: "DATE"
 //Kotlin nested types
-LIST :: "List"
+LIST :: "LIST"
 
-keywords := map[string]TokenType {
-	"data"			= DATA,
-    "interface"		= INTERFACE,
-	"class"			= CLASS,
-	"val"			= VAL,
-	"var"			= VAR,
-	"override"		= OVERRIDE,
-	//Kotlin prims
-	"String"		= STRING,
-	"bool"			= BOOL,
-	//Kotlin nested types
-	"List"			= LIST,
-	//Kotlin types
-	"ZonedDateTime"	= DATE,
+keywords : map[string]TokenType 
+build_keywords_map :: proc() -> map[string]TokenType {
+    keywords := map[string]TokenType{
+        "data"      = DATA,
+        "interface" = INTERFACE,
+        "class"     = CLASS,
+        "val"       = VAL,
+        "var"       = VAR,
+        "override"  = OVERRIDE,
+    }
+    
+    // Add primitive types from metadata
+    for prim in ast.KOTLIN_PRIMITIVES {
+        if prim.is_lexer_keyword {
+            keywords[prim.kotlin_name] = TokenType(prim.lexer_token_name)
+        }
+    }
+    
+    return keywords
 }
 
 TokenType :: distinct string
@@ -67,11 +73,12 @@ Token :: struct {
 }
 
 Lexer :: struct {
-	input:         string,
-	position:      int,
-	read_position: int,
-	ch:            byte,
-	illegals:      [dynamic]string,
+	input:         	string,
+	position:      	int,
+	read_position: 	int,
+	ch:            	byte,
+	illegals:      	[dynamic]string,
+	keywords:		map[string]TokenType
 }
 
 string_from_byte :: proc(ch: byte) -> string {
@@ -81,8 +88,8 @@ string_from_byte :: proc(ch: byte) -> string {
 	return transmute(string)buf
 }
 
-lookup_ident :: proc(ident: string) -> TokenType {
-	if tok, ok := keywords[ident]; ok {
+lookup_ident :: proc(ident: string, l: ^Lexer) -> TokenType {
+	if tok, ok := l.keywords[ident]; ok {
 		return tok
 	}
 	return IDENT
@@ -91,6 +98,7 @@ lookup_ident :: proc(ident: string) -> TokenType {
 new_lexer :: proc(input: string) -> ^Lexer {
 	l := new(Lexer)
 	l.input = input
+	l.keywords = build_keywords_map()
 	read_char(l)
 	return l
 }
@@ -156,7 +164,7 @@ next_token :: proc(l: ^Lexer) -> Token {
 	case:
 		if is_letter(l.ch) {
 			tok.literal = read_identifier(l)
-			tok.type = lookup_ident(tok.literal)
+			tok.type = lookup_ident(tok.literal, l)
 			return tok
 		} else if is_digit(l.ch) {
 			tok.literal = read_number(l)

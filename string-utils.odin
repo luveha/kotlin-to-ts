@@ -91,29 +91,3 @@ printKotlinClass :: proc(k: ast.KotlinClass) {
     fmt.println("},")
 }
 
-kotlinTypeToTypescriptType :: proc(t: ast.KotlinTypeDefinition) -> string {
-    builder := strings.builder_make()
-    switch t.kotlinType {
-        case .String:
-            strings.write_string(&builder, "string")
-        case .Int, .Float:
-            strings.write_string(&builder, "number")
-        case .Bool:
-            strings.write_string(&builder, "boolean")
-        case .Struct:
-            strings.write_string(&builder, t.name)
-        case .List:
-            strings.write_string(&builder, t.name)
-            strings.write_string(&builder, "[]")
-        case .Date:
-            strings.write_string(&builder, "Date")
-        case .TypeParam:
-            strings.write_string(&builder, t.name) 
-    }
-
-    if t.nullable {
-        strings.write_string(&builder, " | null")
-    }
-
-    return strings.to_string(builder)   
-}

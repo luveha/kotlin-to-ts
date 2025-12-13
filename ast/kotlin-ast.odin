@@ -49,26 +49,48 @@ KotlinClass :: struct {
     fields: [dynamic]^Field,
 }
 
-get_kotlin_type_from_string :: proc(s: string) -> KotlinType {
-    if len(s) == 1 { // Simple heuristic for a generic type parameter (like T, E, V)
-        return KotlinType.TypeParam
-    }
+KotlinPrimitiveMetadata :: struct {
+    enum_value: KotlinType,
+    kotlin_name: string,
+    lexer_token_name: string,
+    typescript_name: string,
+    is_lexer_keyword: bool,
+}
 
-    switch s {
-        case "String":
-            return KotlinType.String
-        case "Int":
-            return KotlinType.Int
-        case "Float":
-            return KotlinType.Float
-        case "Boolean":
-            return KotlinType.Bool
-        case "List":
-            return KotlinType.List
-        case "ZonedDateTime":
-            return KotlinType.Date
-        case:
-            return KotlinType.Struct
+KOTLIN_PRIMITIVES :: []KotlinPrimitiveMetadata{
+    {.String,   "String",           "String",   "string",   true    },
+    {.Int,      "Int",              "INT",      "number",   false   },
+    {.Float,    "Float",            "FLOAT",    "number",   false   },
+    {.Bool,     "Boolean",          "BOOL",     "boolean",  true    },
+    {.Date,     "ZonedDateTime",    "DATE",     "Date",     true    },
+    {.List,     "List",             "LIST",     "[]",       true    },
+}
+
+get_kotlin_type_from_string :: proc(s: string) -> KotlinType {
+    if len(s) == 1 { //Usally one word identifies are type params
+        return .TypeParam
+    }
+    
+    for prim in KOTLIN_PRIMITIVES {
+        if prim.kotlin_name == s {
+            return prim.enum_value
+        }
+    }
+    
+    return .Struct
+}
+
+get_kotlin_string :: proc(kt: KotlinType) -> string {
+    for prim in KOTLIN_PRIMITIVES {
+        if prim.enum_value == kt {
+            return prim.kotlin_name
+        }
+    }
+    
+    #partial switch kt {
+        case .Struct: return "Struct"
+        case .TypeParam: return "TypeParam"
+        case: return ""
     }
 }
 

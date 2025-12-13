@@ -166,6 +166,7 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
             p := parser.new_parser(l)
             ktClasses := parser.parse_file(p)
             for kt in ktClasses.classes {
+                append(&pInfo.ktClasses, kt^)
                 if(set.contains(pInfo.undefinedTypes, kt.name)) {
                     set.remove(&pInfo.undefinedTypes, kt.name)
                 }
@@ -186,31 +187,13 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
                         set.add(&pInfo.undefinedTypes, f.fieldType.name)
                     }
                 }
-                //generateTypescript(kt^)
+                generateTypescript(kt^)
             }
         }
     }
-    fmt.printfln("Number defined: %i", set.size(pInfo.definedTypes))
-    fmt.printfln("Number missing: %i", set.size(pInfo.undefinedTypes))
+    //fmt.printfln("Number defined: %i", set.size(pInfo.definedTypes))
+    //fmt.printfln("Number missing: %i", set.size(pInfo.undefinedTypes))
 
-    fmt.printfln("--------")
-    fmt.printfln("Def types: ")
-    set.print_set(pInfo.definedTypes)
-    fmt.printfln("--------")
-    fmt.printfln("Undef types: ")
-    set.print_set(pInfo.undefinedTypes)
-    fmt.printfln("-------")
-
-    fmt.printfln("Number of classes: %i", len(pInfo.ktClasses))
-    /*
-    for c in pInfo.classesPrimitive {
-        printKotlinClass(c)
-    }
-    for c in pInfo.classesDynamic {
-        printKotlinClass(c)
-    }
-    for c in pInfo.classesExtends {
-        printKotlinClass(c)
-    }
-        */
+    //fmt.printfln("Number of classes: %i", len(pInfo.ktClasses))
+    
 }
