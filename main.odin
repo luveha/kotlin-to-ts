@@ -9,14 +9,15 @@ import "base:runtime"
 import "ast"
 import "lexer"
 import "parser"
+import set "data_structs"
 
 ProjectInfo :: struct {
     rootPath: ^string,
     dtoDirectory: ^string,
     ignoreDirectories: []string,
-    classesPrimitive: [dynamic]ast.KotlinClass,
-    classesDynamic: [dynamic]ast.KotlinClass,
-    classesExtends: [dynamic]ast.KotlinClass,
+    ktClasses: [dynamic]ast.KotlinClass,
+    definedTypes: set.string_set,
+    undefinedTypes: set.string_set,
 }
 
 KotlinSortResult :: enum {
@@ -67,9 +68,10 @@ main :: proc() {
     if(len(ignoreList) > 0) {
         pInfo.ignoreDirectories = strings.split(ignoreList, "|")
     }
-    prim := make([dynamic]ast.KotlinClass); pInfo.classesPrimitive  = prim
-    dyn  := make([dynamic]ast.KotlinClass); pInfo.classesDynamic    = dyn
-    ext  := make([dynamic]ast.KotlinClass); pInfo.classesExtends    = ext
+    ktClasses   := make([dynamic]ast.KotlinClass);  pInfo.ktClasses         = ktClasses
+    def_sets    := set.make_set();                  pInfo.definedTypes      = def_sets
+    undef_sets  := set.make_set();                  pInfo.undefinedTypes    = undef_sets 
+    set.add_kotlin_types(&pInfo.definedTypes)
 
     defer mem.free(pInfo);
 
@@ -164,13 +166,42 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
             p := parser.new_parser(l)
             ktClasses := parser.parse_file(p)
             for kt in ktClasses.classes {
-                generateTypescript(kt^)
+                if(set.contains(pInfo.undefinedTypes, kt.name)) {
+                    set.remove(&pInfo.undefinedTypes, kt.name)
+                }
+                set.add(&pInfo.definedTypes, kt.name)
+
+                if(kt.extends != nil) {
+                    if(!(set.contains(pInfo.definedTypes, kt.extends.name))){
+                        set.add(&pInfo.undefinedTypes, kt.extends.name)
+                    }
+                }
+
+                for f in kt.fields {
+                    if(!(set.contains(pInfo.definedTypes, f.fieldType.name))) {
+                        if(f.fieldType.kotlinType == ast.KotlinType.TypeParam){
+                            continue
+                        }
+
+                        set.add(&pInfo.undefinedTypes, f.fieldType.name)
+                    }
+                }
+                //generateTypescript(kt^)
             }
         }
     }
-    fmt.printfln("Primitive: %i", len(pInfo.classesPrimitive))
-    fmt.printfln("Dynamic: %i", len(pInfo.classesDynamic))
-    fmt.printfln("Extends: %i", len(pInfo.classesExtends))
+    fmt.printfln("Number defined: %i", set.size(pInfo.definedTypes))
+    fmt.printfln("Number missing: %i", set.size(pInfo.undefinedTypes))
+
+    fmt.printfln("--------")
+    fmt.printfln("Def types: ")
+    set.print_set(pInfo.definedTypes)
+    fmt.printfln("--------")
+    fmt.printfln("Undef types: ")
+    set.print_set(pInfo.undefinedTypes)
+    fmt.printfln("-------")
+
+    fmt.printfln("Number of classes: %i", len(pInfo.ktClasses))
     /*
     for c in pInfo.classesPrimitive {
         printKotlinClass(c)

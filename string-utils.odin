@@ -3,7 +3,6 @@ package main
 import "core:strings"
 import "core:fmt"
 import "/ast"
-import "/lexer"
 
 wordContainsList :: proc(word: string, list: []string) -> bool {
     for w in list {
@@ -17,7 +16,6 @@ wordContainsList :: proc(word: string, list: []string) -> bool {
 make_indent :: proc(indent: int) -> string {
     return strings.repeat("  ", indent)
 }
-
 
 
 kotlinTypeToString :: proc(t: ^ast.KotlinType) -> string {
