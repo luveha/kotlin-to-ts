@@ -22,12 +22,13 @@ generate_export_type :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
     // This is made under the assumption that only classes can be received in ts since no instance of an interface can be created and sent
     switch k.classType {
         case .Class: strings.write_string(b, "export ")
-        case .Interface: strings.write_string(b, "export ")
+        case .Interface:
         case .Enum:
     }
 }
 
 generate_interface :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
+    generate_export_type(b, k)
     strings.write_string(b, "interface ")
     strings.write_string(b, k.name)
     generateGenerics(b, k.type_params)
