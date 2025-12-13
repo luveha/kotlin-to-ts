@@ -18,6 +18,7 @@ KotlinType :: enum {
     Float,
     Bool,
     Struct,
+    Date,
     List,
     TypeParam,
 }
@@ -26,7 +27,7 @@ KotlinTypeDefinition :: struct {
     kotlinType: KotlinType,
     name: string,
     nullable: bool,
-    type_params: [dynamic]KotlinTypeDefinition,
+    type_params: [dynamic]string,
 }
 
 Field :: struct {
@@ -56,19 +57,16 @@ get_kotlin_type_from_string :: proc(s: string) -> KotlinType {
     switch s {
         case "String":
             return KotlinType.String
-
         case "Int":
             return KotlinType.Int
-
         case "Float":
             return KotlinType.Float
-
         case "Boolean":
             return KotlinType.Bool
-
         case "List":
             return KotlinType.List
-
+        case "ZonedDateTime":
+            return KotlinType.Date
         case:
             return KotlinType.Struct
     }
@@ -91,7 +89,7 @@ freeKotlinTypeDefinition :: proc(t: ^KotlinTypeDefinition) {
     }
 
     for &tp in t.type_params {
-        freeKotlinTypeDefinition(&tp)
+        free(&tp)
     }
     delete(t.type_params)
 

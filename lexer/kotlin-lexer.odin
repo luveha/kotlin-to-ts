@@ -38,6 +38,8 @@ OVERRIDE :: "Override"
 STRING :: "String"
 BOOL :: "bool"
 
+//Kotlin types
+DATE :: "Date"
 //Kotlin nested types
 LIST :: "List"
 
@@ -53,6 +55,8 @@ keywords := map[string]TokenType {
 	"bool"			= BOOL,
 	//Kotlin nested types
 	"List"			= LIST,
+	//Kotlin types
+	"ZonedDateTime"	= DATE,
 }
 
 TokenType :: distinct string
@@ -172,7 +176,7 @@ next_token :: proc(l: ^Lexer) -> Token {
 
 read_identifier :: proc(l: ^Lexer) -> string {
 	position := l.position
-	for is_letter(l.ch) {
+	for is_letter_or_digit(l.ch) {
 		read_char(l)
 	}
 	return l.input[position:l.position]
@@ -195,6 +199,10 @@ read_string :: proc(l: ^Lexer) -> string {
 		}
 	}
 	return l.input[position:l.position]
+}
+
+is_letter_or_digit:: proc(ch: byte) -> bool {
+	return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z' || ch == '_') || ('0' <= ch && ch <= '9')
 }
 
 is_letter :: proc(ch: byte) -> bool {

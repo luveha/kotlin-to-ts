@@ -22,13 +22,14 @@ make_indent :: proc(indent: int) -> string {
 
 kotlinTypeToString :: proc(t: ^ast.KotlinType) -> string {
     switch t^ {
-        case .String: return "String"
-        case .Int: return "Int"
-        case .Float: return "Float"
-        case .Bool: return "Bool"
-        case .Struct: return "Struct"
-        case .List: return "List"
-        case .TypeParam: return "TypeParam"
+        case .String:       return "String"
+        case .Int:          return "Int"
+        case .Float:        return "Float"
+        case .Bool:         return "Bool"
+        case .Struct:       return "Struct"
+        case .List:         return "List"
+        case .Date:         return "Date"
+        case .TypeParam:    return "TypeParam"
     }
     return ""
 }
@@ -50,10 +51,10 @@ printKotlinTypeDefinition :: proc(k: ^ast.KotlinTypeDefinition, indent: int) {
     fmt.printfln("%sType: %s", make_indent(indent), kotlinTypeToString(&k.kotlinType))
     fmt.printfln("%sName: %s", make_indent(indent), k.name)
     fmt.printfln("%sIs nullable: %t", make_indent(indent), k.nullable)
+    fmt.printfln("%sTypeparams: %s", make_indent(indent))
     for i in 0..=len(k.type_params)-1 {
         f := k.type_params[i]
-        fmt.printfln("%sSubType:", make_indent(indent))
-        printKotlinTypeDefinition(&f, indent + 1)
+        fmt.printfln("%Param: %s", k.type_params[i])
     }
 }
 
@@ -104,10 +105,11 @@ kotlinTypeToTypescriptType :: proc(t: ast.KotlinTypeDefinition) -> string {
         case .Struct:
             strings.write_string(&builder, t.name)
         case .List:
-            strings.write_string(&builder, "[]")
             strings.write_string(&builder, t.name)
+            strings.write_string(&builder, "[]")
+        case .Date:
+            strings.write_string(&builder, "Date")
         case .TypeParam:
-            //DOESN'T WORK
             strings.write_string(&builder, t.name) 
     }
 

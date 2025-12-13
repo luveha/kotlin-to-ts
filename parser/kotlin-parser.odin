@@ -131,7 +131,7 @@ parse_generic :: proc(p: ^Parser, type_params: ^[dynamic]string) -> int {
                 next_token(p)
                 return 2
             case:
-                fmt.printfln("Fails")
+                return 0
                 //ast.freeKotlinClass(kt)
         }
     } else if (p.peek_token.type == lexer.COMMA) {
@@ -156,16 +156,16 @@ parse_impl :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
     next_token(p) 
     
     if p.cur_token.type == lexer.LT {
-        switch parse_generic(p,&kt.type_params) {
+        switch parse_generic(p,&def.type_params) {
             case 1:
                 fmt.printfln("Shouldn't be impl 2 classes")
                 free(def)
                 return
             case 2:
+                kt.extends = def
                 parse_content(p, kt)
             case 0:
-                fmt.printfln("Failed parsing generics")
-                free(def)
+                kt.extends = def
                 return
         }
     }
@@ -270,12 +270,13 @@ parse_content :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
                 next_token(p)
                 parse_impl(p,kt)
             } else {
-                fmt.printfln("Exited correctly")
+                //Should just log
+                //fmt.printfln("Exited correctly")
             }
             return 
         }
 
-        if p.cur_token.type != lexer.VAR {
+        if !(p.cur_token.type == lexer.VAR || p.cur_token.type == lexer.VAL) {
             return
         }
 
@@ -312,6 +313,8 @@ is_kotlin_primitive :: proc(p: lexer.Token) -> bool {
         case lexer.BOOL:
             return true
         case lexer.LIST:
+            return true
+        case lexer.DATE:
             return true
         case:
             return false
