@@ -54,7 +54,7 @@ generate_enum :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
 
 generate_interface :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
     generate_export_type(b, k)
-    strings.write_string(b, "interface ")
+    strings.write_string(b, "type ")
     strings.write_string(b, k.name)
     generateGenerics(b, k.type_params)
 
