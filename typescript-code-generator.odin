@@ -7,12 +7,17 @@ import "ast"
 generateTypescript :: proc(k: ast.KotlinClass) {
     builder := strings.builder_make()
     
-    is_type_alias := len(k.fields) == 0 && k.extends != nil
+    switch k.classType {
+        case .Class, .Interface:
+            is_type_alias := len(k.fields) == 0 && k.extends != nil
 
-    if(is_type_alias) {
-        generate_type_alias(&builder, k)
-    } else {
-        generate_interface(&builder, k)
+            if(is_type_alias) {
+                generate_type_alias(&builder, k)
+            } else {
+                generate_interface(&builder, k)
+            }
+        case .Enum:
+            generate_enum(&builder, k)
     }
     
     fmt.printfln(strings.to_string(builder))
@@ -24,6 +29,26 @@ generate_export_type :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
         case .Class: strings.write_string(b, "export ")
         case .Interface:
         case .Enum:
+    }
+}
+
+generate_enum :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
+    strings.write_string(b, "interface ")
+    strings.write_string(b, k.name)
+    generateGenerics(b, k.type_params)
+    if(k.extends != nil) {
+        strings.write_string(b, " extends ")
+        strings.write_string(b, k.extends^.name)
+        generateGenerics(b, k.extends.type_params)
+    }
+    strings.write_string(b, " = ")
+    for i in 0..<len(k.fields) {
+        strings.write_string(b, `"`)
+        strings.write_string(b, k.fields[i].fieldType.name)
+        strings.write_string(b, `"`)
+        if(i != len(k.fields) - 1) {
+            strings.write_string(b, ` | `)
+        }
     }
 }
 

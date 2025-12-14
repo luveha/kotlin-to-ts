@@ -75,6 +75,14 @@ main :: proc() {
 
     defer mem.free(pInfo);
 
+    /*
+    Nothing certain can be said about the group value in a build gradle.But this says something
+    sourceSets {
+        main {
+            kotlin.srcDirs("does/not/exist")
+        }
+    }
+        so if this does not exists it should use the standard
     for {
         line, err := bufio.reader_read_string(&reader, '\n', context.allocator)
         if err != nil { //Special case fo EOF
@@ -99,8 +107,14 @@ main :: proc() {
         }
         delete(line, context.allocator)
     }
+        */
     findDto(dir, pInfo)
     parseKotlinFiles(pInfo)
+    findMissingDefinitions(dir,pInfo)
+
+    for kt in pInfo.ktClasses {
+        generateTypescript(kt)
+    }
 }
 
 stringFindBetween :: proc(line: string, info: ^ProjectInfo) {
@@ -120,12 +134,7 @@ stringFindBetween :: proc(line: string, info: ^ProjectInfo) {
 findDto :: proc(startDir: string, infoStruct: ^ProjectInfo) {
     //Hard coded for kotlin project file structure
     projectDir := "/src/main/kotlin/"
-    group, ok := strings.replace(infoStruct.rootPath^, ".", "/", -1, context.allocator)
-    if(!ok) {
-        fmt.printfln("Alloc error in string replace")
-        runtime.exit(2)
-    }
-    path := strings.join({startDir, projectDir, group}, "")
+    path := strings.join({startDir, projectDir}, "")
 
     w := os.walker_create(path)
     defer os.walker_destroy(&w)
@@ -158,7 +167,7 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
             data, okFile := os.read_entire_file_from_path(info.fullpath, context.allocator)
             if okFile != nil {
                 // could not read file
-                return
+                continue
             }
             //defer delete(data, context.allocator)
             it := string(data)
@@ -176,6 +185,12 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
                     if(!(set.contains(pInfo.definedTypes, kt.extends.name))){
                         set.add(&pInfo.undefinedTypes, kt.extends.name)
                     }
+                    for tp in kt.extends.type_params {
+                        type := ast.get_kotlin_type_from_string(tp)
+                        if(!(set.contains(pInfo.definedTypes, tp) && type != .TypeParam )){
+                            set.add(&pInfo.undefinedTypes, tp)
+                        }
+                    }
                 }
 
                 for f in kt.fields {
@@ -183,17 +198,55 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
                         if(f.fieldType.kotlinType == ast.KotlinType.TypeParam){
                             continue
                         }
-
                         set.add(&pInfo.undefinedTypes, f.fieldType.name)
                     }
                 }
-                generateTypescript(kt^)
             }
         }
     }
-    //fmt.printfln("Number defined: %i", set.size(pInfo.definedTypes))
-    //fmt.printfln("Number missing: %i", set.size(pInfo.undefinedTypes))
+}
 
-    //fmt.printfln("Number of classes: %i", len(pInfo.ktClasses))
-    
+findMissingDefinitions :: proc(startDir: string, pInfo: ^ProjectInfo) {
+    projectDir := "/src/main/kotlin/"
+    path := strings.join({startDir, projectDir}, "")
+
+    w := os.walker_create(path)
+    defer os.walker_destroy(&w)
+
+    for info in os.walker_walk(&w) {
+        if path, err := os.walker_error(&w); err != nil {
+            continue
+        }
+        if info.type == os.File_Type.Directory && (wordContainsList(info.name, pInfo.ignoreDirectories) || strings.contains(info.name, "dto")){
+            os.walker_skip_dir(&w)
+            continue
+        }
+
+        if info.type == os.File_Type.Regular && strings.has_suffix(info.name, ".kt") {
+            data, okFile := os.read_entire_file_from_path(info.fullpath, context.allocator)
+            if okFile != nil {
+                // could not read file
+                continue
+            }
+            for x in pInfo.undefinedTypes {
+                if(strings.contains(string(data), strings.concatenate({"enum class ", x}))) {
+                    //Needs to be optimized to not parse entire file
+                    it := string(data)
+                    l := lexer.new_lexer(it)
+                    p := parser.new_parser(l)
+                    ktClasses := parser.parse_file(p)
+                    for k in ktClasses.classes {
+                        if(set.contains(pInfo.undefinedTypes, k.name)) {
+                            set.remove(&pInfo.undefinedTypes, k.name)
+                            set.add(&pInfo.definedTypes, k.name)
+                            append(&pInfo.ktClasses, k^)
+                        }
+                    }
+                    break
+                }
+            }
+            
+            //defer delete(data, context.allocator)
+        }
+    }
 }

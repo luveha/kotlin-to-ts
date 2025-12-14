@@ -67,7 +67,9 @@ parse_class :: proc(p: ^Parser) -> ^ast.KotlinClass {
     case lexer.INTERFACE:
         kt.classType = ast.KotlinClassType.Interface
     case lexer.CLASS:
-        kt.classType = ast.KotlinClassType.Class        
+        kt.classType = ast.KotlinClassType.Class  
+    case lexer.ENUM:
+        kt.classType = ast.KotlinClassType.Enum
     case:
         ast.freeKotlinClass(kt)
         return nil
@@ -83,6 +85,10 @@ parse_class :: proc(p: ^Parser) -> ^ast.KotlinClass {
 }
 
 parse_function_name :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
+    if(kt.classType == .Enum && p.cur_token.type == lexer.CLASS) {
+        next_token(p)
+    }
+
     switch p.cur_token.type {
         case lexer.IDENT:
             kt.name = strings.clone(p.cur_token.literal)
@@ -111,11 +117,42 @@ parse_generic_impl_or_values :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
             parse_impl(p,kt)
         case lexer.LBRACE, lexer.LPAREN:
             next_token(p)
-            parse_content(p, kt)
+            if(kt.classType == .Enum) {
+                next_token(p)
+                parse_enum(p, kt)
+            } else {
+                parse_content(p, kt)
+            }
         case:
             next_token(p)
             //ast.freeKotlinClass(kt)
     }
+}
+
+parse_enum :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
+    if(p.cur_token.type == lexer.RBRACE) {
+        return
+    }
+
+    if(p.cur_token.type != lexer.IDENT) {
+        return
+    }
+    field := new(ast.Field)
+    field.name = strings.clone("Enum type")
+    def: ast.KotlinTypeDefinition = {}
+
+    def.kotlinType = .String
+    def.name = strings.clone(p.cur_token.literal)
+    def.nullable = false
+    
+    field.fieldType = def
+    append(&kt.fields, field)
+
+    next_token(p)
+    if(p.cur_token.type == lexer.COMMA) {
+        next_token(p)
+    }
+    parse_enum(p,kt)
 }
 
 parse_generic :: proc(p: ^Parser, type_params: ^[dynamic]string) -> int {

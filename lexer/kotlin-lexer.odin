@@ -31,6 +31,7 @@ STAR :: "*"
 DATA :: "Data"
 INTERFACE :: "Interface"
 CLASS :: "Class"
+ENUM :: "Enum"
 VAL :: "Val"
 VAR :: "var"
 OVERRIDE :: "Override"
@@ -50,6 +51,7 @@ build_keywords_map :: proc() -> map[string]TokenType {
         "data"      = DATA,
         "interface" = INTERFACE,
         "class"     = CLASS,
+		"enum"		= ENUM,
         "val"       = VAL,
         "var"       = VAR,
         "override"  = OVERRIDE,
