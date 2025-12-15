@@ -86,6 +86,7 @@ Lexer :: struct {
 string_from_byte :: proc(ch: byte) -> string {
 	// https://odin-lang.org/docs/overview/#from-u8-to-x
 	buf := make([]u8, 1)
+	defer delete(buf)
 	buf[0] = ch
 	return transmute(string)buf
 }

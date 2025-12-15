@@ -20,6 +20,32 @@ ProjectInfo :: struct {
     undefinedTypes: set.string_set,
 }
 
+free_projectInfo :: proc(pInfo: ^ProjectInfo) {
+    if pInfo.rootPath != nil {
+        free(raw_data(pInfo.rootPath^))
+        free(pInfo.rootPath) 
+    }
+    if pInfo.dtoDirectory != nil {
+        free(raw_data(pInfo.dtoDirectory^))
+        free(pInfo.dtoDirectory)
+    }
+
+    /*
+    for s in pInfo.ignoreDirectories {
+        delete(s)
+    }
+    
+    free(&pInfo.ignoreDirectories)
+    
+    for i in 0..<len(pInfo.ktClasses) {
+        ast.freeKotlinClass(&pInfo.ktClasses[i])
+    }
+    free(&pInfo.ktClasses)
+    */
+}
+
+
+
 KotlinSortResult :: enum {
     PrimitivesOnly,
     ContainsStructs,
@@ -27,15 +53,21 @@ KotlinSortResult :: enum {
 }
 
 
-allocString :: proc(value: string, destination: ^^string ) {
-    temp := new(string)
-    bytes := make([]u8, len(value))
-    runtime.copy_from_string(bytes, value)
-    temp^ = string(bytes)
+alloc_and_clone_string :: proc(value: string, destination: ^^string) {
+    temp := new(string) 
+    
+    temp^ = strings.clone(value)
+
     destination^ = temp
 }
 
 main :: proc() {
+    def_alloc := context.allocator
+    tracking_alloc := mem.Tracking_Allocator {}
+    mem.tracking_allocator_init(&tracking_alloc, def_alloc)
+    context.allocator = mem.tracking_allocator(&tracking_alloc)
+
+
     dir := ".";
     ignoreList := ""
     if len(os.args) > 1 {
@@ -65,6 +97,8 @@ main :: proc() {
     bufio.reader_init_with_buf(&reader, s, buffer[:]);
 
     pInfo := new(ProjectInfo)
+    defer free_projectInfo(pInfo)
+
     if(len(ignoreList) > 0) {
         pInfo.ignoreDirectories = strings.split(ignoreList, "|")
     }
@@ -72,8 +106,6 @@ main :: proc() {
     def_sets    := set.make_set();                  pInfo.definedTypes      = def_sets
     undef_sets  := set.make_set();                  pInfo.undefinedTypes    = undef_sets 
     set.add_kotlin_types(&pInfo.definedTypes)
-
-    defer mem.free(pInfo);
 
     /*
     Nothing certain can be said about the group value in a build gradle.But this says something
@@ -111,10 +143,27 @@ main :: proc() {
     findDto(dir, pInfo)
     parseKotlinFiles(pInfo)
     findMissingDefinitions(dir,pInfo)
-
+    /*
     for kt in pInfo.ktClasses {
         generateTypescript(kt)
     }
+        */
+
+    z := 0
+    leaks := set.make_set()
+
+    for _, leak in tracking_alloc.allocation_map {
+        loc_str := fmt.tprintf("%v", leak.location)
+
+        leak_description := strings.concatenate({loc_str, " leaked ", "\n"})
+        
+        set.add(&leaks, leak_description)
+        z += 1
+    }
+    for z in set.to_slice(leaks) {
+        fmt.printf("%s", z)
+    }
+    fmt.printfln("Amount: %i", z)
 }
 
 stringFindBetween :: proc(line: string, info: ^ProjectInfo) {
@@ -126,7 +175,7 @@ stringFindBetween :: proc(line: string, info: ^ProjectInfo) {
             end += start;
             group := line[start:end];
 
-            allocString(group, &info.rootPath)
+            alloc_and_clone_string(group, &info.rootPath)
         }
     }
 }
@@ -145,7 +194,7 @@ findDto :: proc(startDir: string, infoStruct: ^ProjectInfo) {
             continue
         }
         if info.type == os.File_Type.Directory && strings.has_prefix(info.name, "dto") {
-            allocString(info.fullpath, &infoStruct.dtoDirectory)
+            alloc_and_clone_string(info.fullpath, &infoStruct.dtoDirectory)
         }
     }
 }
@@ -174,6 +223,7 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
             l := lexer.new_lexer(it)
             p := parser.new_parser(l)
             ktClasses := parser.parse_file(p)
+            defer free(ktClasses)
             for kt in ktClasses.classes {
                 append(&pInfo.ktClasses, kt^)
                 if(set.contains(pInfo.undefinedTypes, kt.name)) {
@@ -235,6 +285,7 @@ findMissingDefinitions :: proc(startDir: string, pInfo: ^ProjectInfo) {
                     l := lexer.new_lexer(it)
                     p := parser.new_parser(l)
                     ktClasses := parser.parse_file(p)
+                    defer free(ktClasses)
                     for k in ktClasses.classes {
                         if(set.contains(pInfo.undefinedTypes, k.name)) {
                             set.remove(&pInfo.undefinedTypes, k.name)

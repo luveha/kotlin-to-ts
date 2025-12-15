@@ -6,6 +6,7 @@ import "ast"
 
 generateTypescript :: proc(k: ast.KotlinClass) {
     builder := strings.builder_make()
+    defer strings.builder_destroy(&builder)
     
     switch k.classType {
         case .Class, .Interface:
@@ -70,7 +71,7 @@ generate_interface :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
         strings.write_string(b, oneIndent)
         strings.write_string(b, t.name)
         strings.write_string(b, ": ")
-        strings.write_string(b, generate_type(t.fieldType))
+        generate_type(b, t.fieldType)
         strings.write_string(b, ";\n")
     }
     strings.write_string(b, "}\n")
@@ -99,29 +100,26 @@ generateGenerics :: proc(b: ^strings.Builder, t_params: [dynamic]string) {
     }
 }
 
-generate_type :: proc(t: ast.KotlinTypeDefinition) -> string {
-    builder := strings.builder_make()
+generate_type :: proc(b: ^strings.Builder, t: ast.KotlinTypeDefinition) {
     switch t.kotlinType {
         case .String:
-            strings.write_string(&builder, "string")
+            strings.write_string(b, "string")
         case .Int, .Float:
-            strings.write_string(&builder, "number")
+            strings.write_string(b, "number")
         case .Bool:
-            strings.write_string(&builder, "boolean")
+            strings.write_string(b, "boolean")
         case .Struct:
-            strings.write_string(&builder, t.name)
+            strings.write_string(b, t.name)
         case .List:
-            strings.write_string(&builder, t.name)
-            strings.write_string(&builder, "[]")
+            strings.write_string(b, t.name)
+            strings.write_string(b, "[]")
         case .Date:
-            strings.write_string(&builder, "Date")
+            strings.write_string(b, "Date")
         case .TypeParam:
-            strings.write_string(&builder, t.name) 
+            strings.write_string(b, t.name) 
     }
 
     if t.nullable {
-        strings.write_string(&builder, " | null")
+        strings.write_string(b, " | null")
     }
-
-    return strings.to_string(builder)   
 }

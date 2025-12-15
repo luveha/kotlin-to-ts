@@ -111,11 +111,13 @@ freeKotlinTypeDefinition :: proc(t: ^KotlinTypeDefinition) {
     }
 
     for &tp in t.type_params {
-        free(&tp)
+        free(raw_data(tp))
     }
     delete(t.type_params)
 
-    delete(t.name)
+    if t.name != "" {
+        free(raw_data(t.name))
+    }
 
     free(t)
 }

@@ -49,7 +49,9 @@ parse_file :: proc(p: ^Parser) -> ^ast.File {
 		ktClass := parse_class(p)
 		if ktClass != nil {
 			append(&file.classes, ktClass)
-		}
+		} else {
+            ast.freeKotlinClass(ktClass)
+        }
 		next_token(p)
 	}
 
@@ -71,7 +73,6 @@ parse_class :: proc(p: ^Parser) -> ^ast.KotlinClass {
     case lexer.ENUM:
         kt.classType = ast.KotlinClassType.Enum
     case:
-        ast.freeKotlinClass(kt)
         return nil
     }
 
@@ -138,7 +139,7 @@ parse_enum :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
         return
     }
     field := new(ast.Field)
-    field.name = strings.clone("Enum type")
+    field.name = "Enum type"
     def: ast.KotlinTypeDefinition = {}
 
     def.kotlinType = .String
