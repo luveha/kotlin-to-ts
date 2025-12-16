@@ -30,9 +30,17 @@ KotlinTypeDefinition :: struct {
     type_params: [dynamic]string,
 }
 
+free_kotlin_type_def :: proc(ktd: ^KotlinTypeDefinition) {
+    //delete(ktd.type_params)
+}
+
 Field :: struct {
     name: string,
     fieldType: KotlinTypeDefinition
+}
+
+free_field :: proc(f: ^Field) {
+    free_kotlin_type_def(&f.fieldType)
 }
 
 KotlinClassType :: enum {
@@ -103,49 +111,6 @@ new_kotlin_class :: proc() -> ^KotlinClass {
     k.extends = nil 
 
     return k
-}
-
-freeKotlinTypeDefinition :: proc(t: ^KotlinTypeDefinition) {
-    if t == nil {
-        return
-    }
-
-    for &tp in t.type_params {
-        free(raw_data(tp))
-    }
-    delete(t.type_params)
-
-    if t.name != "" {
-        free(raw_data(t.name))
-    }
-
-    free(t)
-}
-
-freeField :: proc(f: ^Field) {
-    if f == nil {
-        return
-    }
-    freeKotlinTypeDefinition(&f.fieldType)
-}
-
-freeKotlinClass :: proc(k: ^KotlinClass) {
-    if k == nil {
-        return
-    }
-
-    for &f in k.fields {
-        freeField(f)
-    }
-    delete(k.fields)
-
-    if k.extends != nil {
-        freeKotlinTypeDefinition(k.extends)
-    }
-
-    k.type_params = nil
-
-    free(k)
 }
 
 

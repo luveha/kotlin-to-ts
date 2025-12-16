@@ -20,22 +20,36 @@ ProjectInfo :: struct {
     undefinedTypes: set.string_set,
 }
 
-free_projectInfo :: proc(pInfo: ^ProjectInfo) {
-    if pInfo.rootPath != nil {
-        free(raw_data(pInfo.rootPath^))
-        free(pInfo.rootPath) 
+free_projectInfo :: proc(p: ^ProjectInfo) {
+    defer free(p)
+
+    if p.rootPath != nil {
+        delete(p.rootPath^)
+        free(p.rootPath) 
     }
-    if pInfo.dtoDirectory != nil {
-        free(raw_data(pInfo.dtoDirectory^))
-        free(pInfo.dtoDirectory)
+    if p.dtoDirectory != nil {
+        delete(p.dtoDirectory^)
+        free(p.dtoDirectory)
     }
+
+    delete(p.ignoreDirectories)
+
+    for kt in p.ktClasses {
+        ast.free_kotlin_type_def(kt.extends)
+        //free(kt.extends)
+    }
+
+    delete(p.ktClasses)
+
+    delete(p.definedTypes)
+    delete(p.undefinedTypes)
 
     /*
     for s in pInfo.ignoreDirectories {
         delete(s)
     }
     
-    free(&pInfo.ignoreDirectories)
+    
     
     for i in 0..<len(pInfo.ktClasses) {
         ast.freeKotlinClass(&pInfo.ktClasses[i])
@@ -78,6 +92,8 @@ main :: proc() {
     }
     
     path, err := os.join_path({dir, "build.gradle.kts"}, context.allocator);
+    defer delete(path)
+
     f, open_err := os.open(path, os.File_Flags{.Read});
     if open_err != nil {
         dir, dir_err := os.get_absolute_path(dir, context.allocator);
@@ -107,6 +123,28 @@ main :: proc() {
     undef_sets  := set.make_set();                  pInfo.undefinedTypes    = undef_sets 
     set.add_kotlin_types(&pInfo.definedTypes)
 
+    printing_alloc := mem.Tracking_Allocator {}
+    context.allocator = mem.tracking_allocator(&tracking_alloc)
+
+    z := 0
+    leaks := set.make_set()
+    defer set.free_set(&leaks)
+
+    for _, leak in tracking_alloc.allocation_map {
+        loc_str := fmt.tprintf("%v", leak.location)
+        leak_description := strings.concatenate({loc_str, " leaked ", "\n"})
+        set.add(&leaks, leak_description)
+        z += 1
+    }
+    leak_slice := set.to_slice(leaks)
+    defer delete(leak_slice)
+
+    for z in leak_slice {
+        fmt.printf("%s", z)
+    }
+
+    fmt.printfln("Amount: %i", z)
+    return
     /*
     Nothing certain can be said about the group value in a build gradle.But this says something
     sourceSets {
@@ -148,22 +186,6 @@ main :: proc() {
         generateTypescript(kt)
     }
         */
-
-    z := 0
-    leaks := set.make_set()
-
-    for _, leak in tracking_alloc.allocation_map {
-        loc_str := fmt.tprintf("%v", leak.location)
-
-        leak_description := strings.concatenate({loc_str, " leaked ", "\n"})
-        
-        set.add(&leaks, leak_description)
-        z += 1
-    }
-    for z in set.to_slice(leaks) {
-        fmt.printf("%s", z)
-    }
-    fmt.printfln("Amount: %i", z)
 }
 
 stringFindBetween :: proc(line: string, info: ^ProjectInfo) {
@@ -184,6 +206,7 @@ findDto :: proc(startDir: string, infoStruct: ^ProjectInfo) {
     //Hard coded for kotlin project file structure
     projectDir := "/src/main/kotlin/"
     path := strings.join({startDir, projectDir}, "")
+    defer delete(path)
 
     w := os.walker_create(path)
     defer os.walker_destroy(&w)
@@ -214,6 +237,7 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
 
         if info.type == os.File_Type.Regular && strings.has_suffix(info.name, ".kt") {
             data, okFile := os.read_entire_file_from_path(info.fullpath, context.allocator)
+            defer delete(data)
             if okFile != nil {
                 // could not read file
                 continue
@@ -225,6 +249,7 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
             ktClasses := parser.parse_file(p)
             defer free(ktClasses)
             for kt in ktClasses.classes {
+                defer free(kt)
                 append(&pInfo.ktClasses, kt^)
                 if(set.contains(pInfo.undefinedTypes, kt.name)) {
                     set.remove(&pInfo.undefinedTypes, kt.name)
@@ -259,6 +284,7 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
 findMissingDefinitions :: proc(startDir: string, pInfo: ^ProjectInfo) {
     projectDir := "/src/main/kotlin/"
     path := strings.join({startDir, projectDir}, "")
+    defer delete(path)
 
     w := os.walker_create(path)
     defer os.walker_destroy(&w)
@@ -274,19 +300,23 @@ findMissingDefinitions :: proc(startDir: string, pInfo: ^ProjectInfo) {
 
         if info.type == os.File_Type.Regular && strings.has_suffix(info.name, ".kt") {
             data, okFile := os.read_entire_file_from_path(info.fullpath, context.allocator)
+            defer delete(data)
             if okFile != nil {
                 // could not read file
                 continue
             }
             for x in pInfo.undefinedTypes {
-                if(strings.contains(string(data), strings.concatenate({"enum class ", x}))) {
+                enum_class := strings.concatenate({"enum class ", x})
+                defer delete(enum_class)
+                if(strings.contains(string(data), enum_class)) {
                     //Needs to be optimized to not parse entire file
                     it := string(data)
                     l := lexer.new_lexer(it)
                     p := parser.new_parser(l)
                     ktClasses := parser.parse_file(p)
-                    defer free(ktClasses)
+                    defer free(ktClasses); 
                     for k in ktClasses.classes {
+                        defer free(k)
                         if(set.contains(pInfo.undefinedTypes, k.name)) {
                             set.remove(&pInfo.undefinedTypes, k.name)
                             set.add(&pInfo.definedTypes, k.name)

@@ -50,7 +50,7 @@ parse_file :: proc(p: ^Parser) -> ^ast.File {
 		if ktClass != nil {
 			append(&file.classes, ktClass)
 		} else {
-            ast.freeKotlinClass(ktClass)
+            //ast.freeKotlinClass(ktClass)
         }
 		next_token(p)
 	}

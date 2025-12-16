@@ -12,6 +12,13 @@ make_set :: proc() -> string_set {
     return m
 }
 
+free_set :: proc(s: ^string_set) {
+    for key in s {
+        delete(key)
+    }
+    delete(s^)
+}
+
 add :: proc(s: ^string_set, element: string) -> bool {
     ok := element in s
     if !ok {
