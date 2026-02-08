@@ -10,24 +10,18 @@ import "ast"
 import "lexer"
 import "parser"
 import set "data_structs"
+import "string_utils"
 
 ProjectInfo :: struct {
-    rootPath: ^string,
-    dtoDirectory: ^string,
+    rootPath: string,
+    dtoDirectory: string,
+    controllerDirectory: string,
     ignoreDirectories: []string,
     ktClasses: [dynamic]ast.KotlinClass,
     definedTypes: set.string_set,
     undefinedTypes: set.string_set,
 }
 
-
-allocString :: proc(value: string, destination: ^^string ) {
-    temp := new(string)
-    bytes := make([]u8, len(value))
-    runtime.copy_from_string(bytes, value)
-    temp^ = string(bytes)
-    destination^ = temp
-}
 
 main :: proc() {
     dir := ".";
@@ -103,11 +97,16 @@ main :: proc() {
     }
         */
     findDto(dir, pInfo)
+
+    findControllers(dir, pInfo)
+
     parseKotlinFiles(pInfo)
+    parseControllers(pInfo)
+
     findMissingDefinitions(dir,pInfo)
 
     for kt in pInfo.ktClasses {
-        generateTypescript(kt)
+        //generateTypescript(kt)
     }
 }
 
@@ -120,12 +119,31 @@ stringFindBetween :: proc(line: string, info: ^ProjectInfo) {
             end += start;
             group := line[start:end];
 
-            allocString(group, &info.rootPath)
+            string_utils.copy_string(group, &info.rootPath)
         }
     }
 }
 
 findDto :: proc(startDir: string, infoStruct: ^ProjectInfo) {
+    //Hard coded for kotlin project file structure
+    projectDir := "/src/main/kotlin/"
+    path, _ := os.join_path({startDir, "src", "main", "kotlin"}, context.temp_allocator)
+
+    w := os.walker_create(path)
+    defer os.walker_destroy(&w)
+
+    for info in os.walker_walk(&w) {
+        if path, err := os.walker_error(&w); err != nil {
+            fmt.eprintfln("failed walking %s: %s", path, err)
+            continue
+        }
+        if info.type == os.File_Type.Directory && strings.has_prefix(info.name, "dto") {
+            string_utils.copy_string(info.fullpath, &infoStruct.dtoDirectory)
+        }
+    }
+}
+
+findControllers :: proc(startDir: string, infoStruct: ^ProjectInfo) {
     //Hard coded for kotlin project file structure
     projectDir := "/src/main/kotlin/"
     path := strings.join({startDir, projectDir}, "")
@@ -138,21 +156,25 @@ findDto :: proc(startDir: string, infoStruct: ^ProjectInfo) {
             fmt.eprintfln("failed walking %s: %s", path, err)
             continue
         }
-        if info.type == os.File_Type.Directory && strings.has_prefix(info.name, "dto") {
-            allocString(info.fullpath, &infoStruct.dtoDirectory)
+        if info.type == os.File_Type.Directory && strings.has_prefix(info.name, "controller") {
+            string_utils.copy_string(info.fullpath, &infoStruct.controllerDirectory)
         }
     }
 }
 
 parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
-    w := os.walker_create(pInfo.dtoDirectory^)
+    if pInfo.dtoDirectory == "" {
+        fmt.println("Warning: dtoDirectory is empty, skipping parse.")
+        return
+    }
+    w := os.walker_create(pInfo.dtoDirectory)
     defer os.walker_destroy(&w)
 
     for info in os.walker_walk(&w) {
         if path, err := os.walker_error(&w); err != nil {
             continue
         }
-        if info.type == os.File_Type.Directory && wordContainsList(info.name, pInfo.ignoreDirectories){
+        if info.type == os.File_Type.Directory && string_utils.wordContainsList(info.name, pInfo.ignoreDirectories){
             os.walker_skip_dir(&w)
             continue
         }
@@ -200,6 +222,39 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
     }
 }
 
+parseControllers :: proc(pInfo: ^ProjectInfo) {
+    if pInfo.controllerDirectory == "" {
+        fmt.println("Warning: dtoDirectory is empty, skipping parse.")
+        return
+    }
+    w := os.walker_create(pInfo.controllerDirectory)
+    defer os.walker_destroy(&w)
+
+    for info in os.walker_walk(&w) {
+        if path, err := os.walker_error(&w); err != nil {
+            continue
+        }
+        if info.type == os.File_Type.Directory && string_utils.wordContainsList(info.name, pInfo.ignoreDirectories){
+            os.walker_skip_dir(&w)
+            continue
+        }
+
+        if info.type == os.File_Type.Regular && strings.has_suffix(info.name, ".kt") {
+            data, okFile := os.read_entire_file_from_path(info.fullpath, context.allocator)
+            if okFile != nil {
+                // could not read file
+                continue
+            }
+            //defer delete(data, context.allocator)
+            it := string(data)
+            l := lexer.new_lexer(it)
+            p := parser.new_parser(l)
+            file := parser.parse_file(p)
+            fmt.printfln(file.rootEndpoint)
+        }
+    }
+}
+
 findMissingDefinitions :: proc(startDir: string, pInfo: ^ProjectInfo) {
     projectDir := "/src/main/kotlin/"
     path := strings.join({startDir, projectDir}, "")
@@ -211,7 +266,7 @@ findMissingDefinitions :: proc(startDir: string, pInfo: ^ProjectInfo) {
         if path, err := os.walker_error(&w); err != nil {
             continue
         }
-        if info.type == os.File_Type.Directory && (wordContainsList(info.name, pInfo.ignoreDirectories) || strings.contains(info.name, "dto")){
+        if info.type == os.File_Type.Directory && (string_utils.wordContainsList(info.name, pInfo.ignoreDirectories) || strings.contains(info.name, "dto")){
             os.walker_skip_dir(&w)
             continue
         }

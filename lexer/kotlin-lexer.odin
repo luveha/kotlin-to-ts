@@ -28,6 +28,7 @@ COLON :: ":"
 QMARK :: "?"
 DASH :: "/"
 STAR :: "*"
+EQUALS :: "="
 
 // Keywords
 DATA :: "Data"
@@ -41,6 +42,10 @@ OVERRIDE :: "Override"
 //Kotlin class prims
 STRING :: "STRING"
 BOOL :: "BOOL"
+
+//Annotation types
+RESTCONTROLLER :: "RestController"
+REQUESTMAPPING :: "RequestMapping"
 
 //Kotlin types
 DATE :: "DATE"
@@ -57,6 +62,8 @@ build_keywords_map :: proc() -> map[string]TokenType {
         "val"       = VAL,
         "var"       = VAR,
         "override"  = OVERRIDE,
+		"RestController" = RESTCONTROLLER,
+		"RequestMapping" = REQUESTMAPPING,
     }
     
     // Add primitive types from metadata
@@ -156,15 +163,24 @@ next_token :: proc(l: ^Lexer) -> Token {
 	case '?':
 		tok.type = QMARK
 		tok.literal = "?"
+	case '[':
+		tok.type = LBRACKET
+		tok.literal = "["
+	case ']':
+		tok.type = RBRACKET
+		tok.literal = "]"
 	case ',':
 		tok.type = COMMA
 		tok.literal = ","
-		case '/':
-			tok.type = DASH
-			tok.literal = "/"
-		case '*':
-			tok.type = STAR
-			tok.literal = "*"
+	case '/':
+		tok.type = DASH
+		tok.literal = "/"
+	case '*':
+		tok.type = STAR
+		tok.literal = "*"
+	case '=':
+		tok.type = EQUALS
+		tok.literal = "="
 	case '@':
 		tok.type = ATSYMBOL
 		tok.literal = "@"
@@ -277,6 +293,24 @@ skip_whitespace :: proc(l: ^Lexer) {
                 break
             }
         } else {
+            break
+        }
+    }
+}
+
+skip_paren :: proc(l: ^Lexer) {
+    paren_depth := 0
+
+    for {
+        if l.ch == '(' {
+            paren_depth += 1
+        } else if l.ch == ')' {
+            paren_depth -= 1
+        }
+
+        read_char(l)
+
+        if paren_depth <= 0 || l.ch == 0 {
             break
         }
     }

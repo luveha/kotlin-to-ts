@@ -2,7 +2,9 @@ package main
 
 import "core:strings"
 import "core:fmt"
+import os "core:os/os2"
 import "ast"
+import "string_utils"
 
 generateTypescript :: proc(k: ast.KotlinClass) {
     builder := strings.builder_make()
@@ -65,7 +67,7 @@ generate_interface :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
     }
     strings.write_string(b, " {{\n")
 
-    oneIndent := make_indent(1)
+    oneIndent := string_utils.make_indent(1)
     for t in k.fields {
         strings.write_string(b, oneIndent)
         strings.write_string(b, t.name)

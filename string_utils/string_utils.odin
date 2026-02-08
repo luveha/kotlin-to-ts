@@ -1,8 +1,13 @@
-package main
+package string_utils
 
 import "core:strings"
 import "core:fmt"
-import "/ast"
+import "../ast"
+import "base:runtime"
+
+copy_string :: proc(value: string, destination: ^string) {
+    destination^ = strings.clone(value)
+}
 
 wordContainsList :: proc(word: string, list: []string) -> bool {
     for w in list {

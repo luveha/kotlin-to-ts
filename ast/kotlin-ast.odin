@@ -2,15 +2,38 @@ package ast
 
 File :: struct {
 	classes: [dynamic]^KotlinClass,
+    rootEndpoint: string,
+    endpoint: [dynamic]^Endpoint
 }
 
 new_file :: proc() -> ^File {
 	file := new(File)
     classes := make([dynamic]^KotlinClass)
+    endpoint := make([dynamic]^Endpoint)
+
 	file.classes = classes
+    file.endpoint = endpoint
 
 	return file
 }
+
+// END POINT START
+
+Endpoint :: struct {
+    name: string,
+    url: string,
+    param: QueryParam,
+    nameOfRequestBody: ^KotlinClass,
+    nameOfSendBody: ^KotlinClass
+}
+
+QueryParam :: enum {
+    Firm,
+    Engagement,
+    Task,
+}
+
+// END POINT END
 
 KotlinType :: enum {
     String,
@@ -103,6 +126,11 @@ new_kotlin_class :: proc() -> ^KotlinClass {
     k.extends = nil 
 
     return k
+}
+
+new_kotlin_endpoint :: proc() -> int {
+
+    return 2
 }
 
 freeKotlinTypeDefinition :: proc(t: ^KotlinTypeDefinition) {
