@@ -13,6 +13,8 @@ INT :: "INT"
 LT :: "<"
 GT :: ">"
 
+ATSYMBOL :: "@"
+
 // Delimiters
 COMMA :: ","
 SEMICOLON :: ";"
@@ -163,6 +165,9 @@ next_token :: proc(l: ^Lexer) -> Token {
 		case '*':
 			tok.type = STAR
 			tok.literal = "*"
+	case '@':
+		tok.type = ATSYMBOL
+		tok.literal = "@"
 	case:
 		if is_letter(l.ch) {
 			tok.literal = read_identifier(l)

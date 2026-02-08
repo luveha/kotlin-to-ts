@@ -20,12 +20,6 @@ ProjectInfo :: struct {
     undefinedTypes: set.string_set,
 }
 
-KotlinSortResult :: enum {
-    PrimitivesOnly,
-    ContainsStructs,
-    Impl,
-}
-
 
 allocString :: proc(value: string, destination: ^^string ) {
     temp := new(string)
