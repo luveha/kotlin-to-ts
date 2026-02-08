@@ -29,6 +29,7 @@ QMARK :: "?"
 DASH :: "/"
 STAR :: "*"
 EQUALS :: "="
+CMARK :: "\""
 
 // Keywords
 DATA :: "Data"
@@ -47,6 +48,9 @@ BOOL :: "BOOL"
 RESTCONTROLLER :: "RestController"
 REQUESTMAPPING :: "RequestMapping"
 
+//Ambiguous category, it is an identifier but not in context it is needed
+PATH :: "path"
+
 //Kotlin types
 DATE :: "DATE"
 //Kotlin nested types
@@ -64,6 +68,7 @@ build_keywords_map :: proc() -> map[string]TokenType {
         "override"  = OVERRIDE,
 		"RestController" = RESTCONTROLLER,
 		"RequestMapping" = REQUESTMAPPING,
+		"path"		= PATH,
     }
     
     // Add primitive types from metadata
@@ -181,6 +186,9 @@ next_token :: proc(l: ^Lexer) -> Token {
 	case '=':
 		tok.type = EQUALS
 		tok.literal = "="
+	case '"':
+		tok.type = CMARK
+		tok.literal = "\""	
 	case '@':
 		tok.type = ATSYMBOL
 		tok.literal = "@"

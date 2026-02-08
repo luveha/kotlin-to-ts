@@ -26,8 +26,20 @@ parse_controller :: proc(p: ^Parser) -> string {
 
 parse_mapping :: proc(p: ^Parser) -> string {
 
+    if !expect_token(p, lexer.LPAREN){
+        return ""
+    }
+
+    skip_path_if_present(p)
 
     print_next_x_tokens(p, 4)
 
     return ""
+}
+
+skip_path_if_present :: proc(p: ^Parser) {
+    
+    expect_token(p, lexer.PATH)
+    expect_token(p, lexer.EQUALS)
+    expect_token(p, lexer.LBRACKET)
 }
