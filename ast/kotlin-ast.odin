@@ -100,6 +100,7 @@ KotlinAnnotation :: enum {
     REQUIREACCESS,
     REQUESTMAPPING,
     POSTMAPPING,
+    REQUESTBODY,
     UNKNOWN,
 }
 

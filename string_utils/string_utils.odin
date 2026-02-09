@@ -44,6 +44,7 @@ string_to_annotation_type :: proc(s: string) -> ast.KotlinAnnotation {
         case "RequireAccess":   return ast.KotlinAnnotation.REQUIREACCESS
         case "RequestMapping":  return ast.KotlinAnnotation.REQUESTMAPPING
         case "PostMapping":     return ast.KotlinAnnotation.POSTMAPPING
+        case "RequestBody":     return ast.KotlinAnnotation.REQUESTBODY
     }
     return ast.KotlinAnnotation.UNKNOWN
 }
