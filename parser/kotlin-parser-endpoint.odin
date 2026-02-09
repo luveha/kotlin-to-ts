@@ -38,6 +38,7 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
         return nil
     }
     if !parse_constructor(p, endp) {
+
         ast.free_endpoint(endp)
         return nil
     }
@@ -163,28 +164,46 @@ parse_constructor :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
 }
 
 parse_parameters :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
-    for (!cur_token_is(p, lexer.RPAREN) || cur_token_is(p, lexer.EOF)) {
-
+    for (!cur_token_is(p, lexer.RPAREN) && !cur_token_is(p, lexer.EOF)) {
         if(cur_token_is(p, lexer.ANNOTATION)) {
             if(expect_token_and_annotation(p, .REQUESTBODY)) {
                 b, s := parse_param(p)
                 if(b) {
-                    e.body = s
-                } else {
+                    def := new(ast.KotlinTypeDefinition)
+
+                    def.name = strings.clone(s)
+                    def.kotlinType = ast.get_kotlin_type_from_string(def.name)
+                    def.nullable = false
+                    type_params := make([dynamic]string)
+                    if p.cur_token.type == lexer.LT {
+                        next_token(p)
+                        for (!cur_token_is(p, lexer.GT) && !cur_token_is(p, lexer.EOF)) {
+                            append(&type_params, p.cur_token.literal)
+                            next_token(p)
+                        }
+                        def.type_params = type_params
+                    }
+                    
+                    e.body = def^
+                }
+                else {
                     return false
                 }
             } else {
                 next_token(p)
+                if(cur_token_is(p, lexer.LPAREN)) {
+                    skip_paren(p)
+                }
                 b, _ := parse_param(p)
                 if !b { return false }
             }
         } else {
             b, s := parse_param(p)
-            if !b { return false }
+            if !b {return false }
             ast.highest_param(s, e)
         }
     }
-    next_token(p)
+    if !expect_token(p, lexer.RPAREN) do return false
 
     return true
 }
@@ -219,9 +238,28 @@ parse_dto :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
     }
 
     if(cur_token_is(p, lexer.IDENT) || is_kotlin_primitive(p.cur_token)) {
-        e.dto = p.cur_token.literal
+        def := new(ast.KotlinTypeDefinition)
+        defer free(def)
+
+        def.name = strings.clone(p.cur_token.literal)
+        def.kotlinType = ast.get_kotlin_type_from_string(def.name)
+        def.nullable = false //Huristic for that it should never return null if it can
+        type_params := make([dynamic]string)
+        
+
         next_token(p)
+        
+        if p.cur_token.type == lexer.LT {
+            next_token(p)
             
+            for (!cur_token_is(p, lexer.GT) || cur_token_is(p, lexer.EOF)) {
+                append(&type_params, p.cur_token.literal) //Some assumptions made here about what is inside the < >
+                next_token(p)
+            }
+            def.type_params = type_params
+        }
+        e.dto = def^
+
         return true
     }
 

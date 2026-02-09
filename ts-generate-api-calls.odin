@@ -1,5 +1,6 @@
 package main
 
+import "core:fmt"
 import "core:strings"
 import "ast"
 
@@ -38,18 +39,24 @@ generate_constructor :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
             strings.write_string(b, ", taskId: string")
         case .None:
     }
-
-    if len(endpoint.body) > 0 {
+    
+    if len(endpoint.body.name) > 0 {
         strings.write_string(b, ", body: ")
-        strings.write_string(b, endpoint.body)
+        strings.write_string(b, endpoint.body.name)
     }
 }
 
 generate_return_type :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     strings.write_string(b, "Promise<")
     
-    if len(endpoint.dto) > 0 {
-        strings.write_string(b, endpoint.dto)
+    if len(endpoint.dto.name) > 0 {
+        if(endpoint.dto.kotlinType == .List) {
+            strings.write_string(b, endpoint.dto.type_params[0]) //List should always only have one typeparam, under the assumption that there is no nested
+            strings.write_string(b, "[]")
+        }
+        else {
+            strings.write_string(b, endpoint.dto.name)
+        }
     } else {
         strings.write_string(b, "void")
     }
@@ -67,7 +74,7 @@ generate_function_body :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     generate_url_path(b, endpoint)
     strings.write_string(b, "`")
     
-    has_body := len(endpoint.body) > 0
+    has_body := len(endpoint.body.name) > 0
     
     if has_body {
         strings.write_string(b, ", body")
@@ -79,7 +86,7 @@ generate_function_body :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     strings.write_string(b, "    },\n")
     strings.write_string(b, "  })")
     
-    if len(endpoint.dto) > 0 {
+    if len(endpoint.dto.name) > 0 {
         strings.write_string(b, ".then(x => x.data);\n")
     } else {
         strings.write_string(b, ".then(() => {});\n")
@@ -91,11 +98,11 @@ generate_url_path :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     
     switch endpoint.param {
         case .Firm:
-            strings.write_string(b, "?firmId={firmId}")
+            strings.write_string(b, "?firmId=${firmId}")
         case .Engagement:
-            strings.write_string(b, "?engagementId={engagementId}")
+            strings.write_string(b, "?engagementId=${engagementId}")
         case .Task:
-            strings.write_string(b, "?taskId={taskId}")
+            strings.write_string(b, "?taskId=${taskId}")
         case .None:
     }
 }

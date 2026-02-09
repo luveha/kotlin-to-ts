@@ -319,11 +319,16 @@ process_parsed_controllers:: proc(pInfo: ^ProjectInfo, controller: ^ast.Controll
     append(&pInfo.controllers, controller^)
 
     for endp in controller.endpoints {
-        if !set.contains(pInfo.definedTypes, endp.body) {
-            set.add(&pInfo.undefinedTypes, endp.body)
+        
+        if(endp.body.kotlinType == .Struct) {
+            if !set.contains(pInfo.definedTypes, endp.body.name) {
+                set.add(&pInfo.undefinedTypes, endp.body.name)
+            }
         }
-        if !set.contains(pInfo.definedTypes, endp.dto) {
-            set.add(&pInfo.undefinedTypes, endp.dto)
+        if(endp.dto.kotlinType == .Struct) {
+            if !set.contains(pInfo.definedTypes, endp.dto.name) {
+                set.add(&pInfo.undefinedTypes, endp.dto.name)
+            }
         }
     }
 }

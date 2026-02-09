@@ -31,8 +31,8 @@ Endpoint :: struct {
     url:            string,
     param:          QueryParam,
     requestMethod:  HTTP_REQUEST_METHOD,
-    body:           string,
-    dto:            string,
+    body:           KotlinTypeDefinition,
+    dto:            KotlinTypeDefinition,
 }
 
 HTTP_REQUEST_METHOD :: enum {
