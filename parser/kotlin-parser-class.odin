@@ -117,6 +117,15 @@ parse_enum :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
     if(p.cur_token.type == lexer.COMMA) {
         next_token(p)
     }
+
+    if(expect_token_and_lit(p, lexer.IDENT, "companion")) {
+        if(expect_token_and_lit(p, lexer.IDENT, "object")) {
+            if(cur_token_is(p, lexer.LBRACE)) {
+                skip_brace(p)
+                return
+            }
+        }
+    }
     
     parse_enum(p,kt)
 }
