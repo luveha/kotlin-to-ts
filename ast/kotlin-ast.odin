@@ -20,11 +20,24 @@ new_file :: proc() -> ^File {
 // END POINT START
 
 Endpoint :: struct {
-    name: string,
-    url: string,
-    param: QueryParam,
-    body: string,
-    dto: string,
+    name:           string,
+    url:            string,
+    param:          QueryParam,
+    requestMethod:  HTTP_REQUEST_METHOD,
+    body:           string,
+    dto:            string,
+}
+
+HTTP_REQUEST_METHOD :: enum {
+    GET,
+    HEAD,
+    POST,
+    PUT,
+    DELETE,
+    PATCH,
+    OPTIONS,
+    CONNECT,
+    TRACE
 }
 
 QueryParam :: enum {
@@ -128,9 +141,16 @@ new_kotlin_class :: proc() -> ^KotlinClass {
     return k
 }
 
-new_kotlin_endpoint :: proc() -> int {
+new_endpoint :: proc() -> ^Endpoint {
+    e := new(Endpoint)
 
-    return 2
+    return e
+}
+
+free_endpoint :: proc(e: ^Endpoint) {
+    if e == nil do return
+    
+    free(e)
 }
 
 freeKotlinTypeDefinition :: proc(t: ^KotlinTypeDefinition) {

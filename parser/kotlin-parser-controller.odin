@@ -2,6 +2,7 @@
 package parser
 
 import "../lexer"
+import "core:fmt"
 
 parse_controller :: proc(p: ^Parser) -> string {
     if !expect_token(p, lexer.RESTCONTROLLER) {
@@ -37,20 +38,12 @@ skip_path_if_present :: proc(p: ^Parser) {
 }
 
 parse_path_value :: proc(p: ^Parser) -> string {
-    if !expect_token(p, lexer.CMARK){
-        return ""
-    }
-
-    if !expect_token(p, lexer.DASH){
+    if !cur_token_is(p, lexer.STRING_LIT){
         return ""
     }
 
     val := p.cur_token.literal
     next_token(p)
-
-    if !expect_token(p, lexer.CMARK){
-        return ""
-    }
 
     expect_token(p, lexer.RBRACKET)
     if !expect_token(p, lexer.RPAREN){

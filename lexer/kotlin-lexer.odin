@@ -9,6 +9,7 @@ EOF :: "EOF"
 // Identifiers and lierals
 IDENT :: "IDENT"
 INT :: "INT"
+STRING_LIT :: "STRING_LIT"
 
 LT :: "<"
 GT :: ">"
@@ -29,7 +30,6 @@ QMARK :: "?"
 DASH :: "/"
 STAR :: "*"
 EQUALS :: "="
-CMARK :: "\""
 
 // Keywords
 DATA :: "Data"
@@ -45,8 +45,11 @@ STRING :: "STRING"
 BOOL :: "BOOL"
 
 //Annotation types
-RESTCONTROLLER :: "RestController"
-REQUESTMAPPING :: "RequestMapping"
+RESTCONTROLLER 	:: "RestController"
+REQUIREACCESS	:: "RequireAccess"
+	//HTML TYPES
+REQUESTMAPPING 	:: "RequestMapping"
+POSTMAPPING 	:: "PostMapping"
 
 //Ambiguous category, it is an identifier but not in context it is needed
 PATH :: "path"
@@ -66,9 +69,12 @@ build_keywords_map :: proc() -> map[string]TokenType {
         "val"       = VAL,
         "var"       = VAR,
         "override"  = OVERRIDE,
-		"RestController" = RESTCONTROLLER,
-		"RequestMapping" = REQUESTMAPPING,
+		"RestController" 	= RESTCONTROLLER,
+		"RequestMapping" 	= REQUESTMAPPING,
+		"PostMapping"		= POSTMAPPING,
+		"RequireAccess"		= REQUIREACCESS,
 		"path"		= PATH,
+		
     }
     
     // Add primitive types from metadata
@@ -187,8 +193,8 @@ next_token :: proc(l: ^Lexer) -> Token {
 		tok.type = EQUALS
 		tok.literal = "="
 	case '"':
-		tok.type = CMARK
-		tok.literal = "\""	
+		tok.type = STRING_LIT
+		tok.literal = read_string(l)
 	case '@':
 		tok.type = ATSYMBOL
 		tok.literal = "@"
@@ -233,11 +239,19 @@ read_string :: proc(l: ^Lexer) -> string {
 	position := l.position + 1
 	for {
 		read_char(l)
-		if l.ch == '"' {
-			break
-		}
+		if l.ch == 0 {
+            break 
+        }
+        if l.ch == '\\' {
+            read_char(l)
+            continue
+        }
+        if l.ch == '"' {
+            break
+        }
 	}
-	return l.input[position:l.position]
+	content := l.input[position:l.position]
+    return content
 }
 
 is_letter_or_digit:: proc(ch: byte) -> bool {
@@ -301,24 +315,6 @@ skip_whitespace :: proc(l: ^Lexer) {
                 break
             }
         } else {
-            break
-        }
-    }
-}
-
-skip_paren :: proc(l: ^Lexer) {
-    paren_depth := 0
-
-    for {
-        if l.ch == '(' {
-            paren_depth += 1
-        } else if l.ch == ')' {
-            paren_depth -= 1
-        }
-
-        read_char(l)
-
-        if paren_depth <= 0 || l.ch == 0 {
             break
         }
     }

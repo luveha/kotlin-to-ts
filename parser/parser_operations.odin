@@ -1,5 +1,6 @@
 package parser
 
+import "core:strings"
 import "../lexer"
 
 next_token :: proc(p: ^Parser) {
@@ -30,4 +31,22 @@ expect_token :: proc(p: ^Parser, type: lexer.TokenType) -> bool {
     }
     next_token(p)
     return true
+}
+
+skip_paren :: proc(p: ^Parser) {
+    paren_depth := 0
+
+    for {
+        if cur_token_is(p, lexer.LPAREN) {
+            paren_depth += 1
+        } else if cur_token_is(p, lexer.RPAREN)  {
+            paren_depth -= 1
+        }
+
+        next_token(p)
+
+        if paren_depth <= 0 || p.cur_token.type == lexer.EOF {
+            break
+        }
+    }
 }
