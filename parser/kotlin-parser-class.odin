@@ -122,7 +122,6 @@ parse_enum :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
         if(expect_token_and_lit(p, lexer.IDENT, "object")) {
             if(cur_token_is(p, lexer.LBRACE)) {
                 skip_brace(p)
-                return
             }
         }
     }

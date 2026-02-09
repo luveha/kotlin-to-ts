@@ -18,6 +18,7 @@ ProjectInfo :: struct {
     controllerDirectory: string,
     ignoreDirectories: []string,
     ktClasses: [dynamic]ast.KotlinClass,
+    controllers: [dynamic]ast.Controller,
     definedTypes: set.string_set,
     undefinedTypes: set.string_set,
 }
@@ -57,6 +58,7 @@ main :: proc() {
         pInfo.ignoreDirectories = strings.split(ignoreList, "|")
     }
     ktClasses   := make([dynamic]ast.KotlinClass);  pInfo.ktClasses         = ktClasses
+    controllers := make([dynamic]ast.Controller);   pInfo.controllers       = controllers
     def_sets    := set.make_set();                  pInfo.definedTypes      = def_sets
     undef_sets  := set.make_set();                  pInfo.undefinedTypes    = undef_sets 
     set.add_kotlin_types(&pInfo.definedTypes)
@@ -107,6 +109,12 @@ main :: proc() {
 
     for kt in pInfo.ktClasses {
         generateTypescript(kt)
+    }
+
+    for c in pInfo.controllers {
+        for endp in c.endpoints {
+            fmt.println(generate_typescript_endpoint(endp))
+        }
     }
 }
 
@@ -224,6 +232,8 @@ parseControllers :: proc(pInfo: ^ProjectInfo) {
             p := parser.new_parser(l)
             file := parser.parse_file(p)
             process_parsed_classes(pInfo, file.classes)
+            process_parsed_controllers(pInfo, file.controller)
+
         }
     }
 }
@@ -304,3 +314,18 @@ process_parsed_classes :: proc(pInfo: ^ProjectInfo, ktClasses: [dynamic]^ast.Kot
         }
     }
 }
+
+process_parsed_controllers:: proc(pInfo: ^ProjectInfo, controller: ^ast.Controller) {
+    append(&pInfo.controllers, controller^)
+
+    for endp in controller.endpoints {
+        if !set.contains(pInfo.definedTypes, endp.body) {
+            set.add(&pInfo.undefinedTypes, endp.body)
+        }
+        if !set.contains(pInfo.definedTypes, endp.dto) {
+            set.add(&pInfo.undefinedTypes, endp.dto)
+        }
+    }
+}
+
+
