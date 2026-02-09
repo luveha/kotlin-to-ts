@@ -38,6 +38,16 @@ string_to_http_type :: proc(s: string) -> ast.HTTP_REQUEST_METHOD {
     return .NON_PARSABLE
 }
 
+string_to_annotation_type :: proc(s: string) -> ast.KotlinAnnotation {
+    switch s {
+        case "RestController":  return ast.KotlinAnnotation.RESTCONTROLLER
+        case "RequireAccess":   return ast.KotlinAnnotation.REQUIREACCESS
+        case "RequestMapping":  return ast.KotlinAnnotation.REQUESTMAPPING
+        case "PostMapping":     return ast.KotlinAnnotation.POSTMAPPING
+    }
+    return ast.KotlinAnnotation.UNKNOWN
+}
+
 kotlinTypeToString :: proc(t: ^ast.KotlinType) -> string {
     switch t^ {
         case .String:       return "String"

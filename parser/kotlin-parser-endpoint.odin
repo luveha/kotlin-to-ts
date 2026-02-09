@@ -8,30 +8,29 @@ import "../ast"
 import "../string_utils"
 
 parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
-    if(!(cur_token_is(p, lexer.REQUIREACCESS) || cur_token_is(p, lexer.POSTMAPPING) || cur_token_is(p, lexer.REQUESTMAPPING))) {
+    if(!(cur_token_is(p, lexer.ANNOTATION))) {
         return nil
     }
     endp := ast.new_endpoint()
 
-    if(skip_require_access(p)) { 
-        if(!expect_token(p, lexer.ATSYMBOL)) {
-            return nil
-        }
+    skip_require_access(p)
+
+    if(cur_token_is(p, lexer.ANNOTATION)) {
+        #partial switch (string_utils.string_to_annotation_type(p.cur_token.literal)) {
+            case .POSTMAPPING:
+                next_token(p)
+                parse_post_mapping(p, endp)
+            case .REQUESTMAPPING:
+                next_token(p)
+                parse_request_mapping(p, endp)
+            case:
+                ast.free_endpoint(endp); return nil
+        }   
+    } else {
+        ast.free_endpoint(endp); return nil
     }
 
-    switch p.cur_token.type {
-        case lexer.POSTMAPPING:
-            next_token(p)
-            parse_post_mapping(p, endp)
-        case lexer.REQUESTMAPPING:
-            next_token(p)
-            parse_request_mapping(p, endp)
-        case: ast.free_endpoint(endp); return nil
-    }
-
-    if(expect_token(p, lexer.ATSYMBOL)) {
-        skip_require_access(p)
-    }
+    skip_require_access(p)
     
     parse_function_name(p, endp)
     
@@ -39,7 +38,7 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
 }
 
 skip_require_access :: proc(p: ^Parser) -> bool {
-    if(expect_token(p, lexer.REQUIREACCESS)) {
+    if(expect_token_and_annotation(p, ast.KotlinAnnotation.REQUIREACCESS)) {
         skip_paren(p)
         return true
     }

@@ -38,8 +38,7 @@ parse_file :: proc(p: ^Parser) -> ^ast.File {
 	file := ast.new_file()
 
 	for p.cur_token.type != lexer.EOF {
-        if(cur_token_is(p, lexer.ATSYMBOL)) {
-            next_token(p)
+        if(cur_token_is(p, lexer.ANNOTATION)) {
             if(file.rootEndpoint == "") {
                 file.rootEndpoint = parse_controller(p)
             } else {

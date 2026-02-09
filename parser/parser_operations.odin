@@ -2,6 +2,8 @@ package parser
 
 import "core:strings"
 import "../lexer"
+import "../ast"
+import "../string_utils"
 
 next_token :: proc(p: ^Parser) {
 	p.cur_token = p.peek_token
@@ -29,6 +31,18 @@ expect_token :: proc(p: ^Parser, type: lexer.TokenType) -> bool {
     if p.cur_token.type != type {
         return false
     }
+    next_token(p)
+    return true
+}
+
+expect_token_and_annotation :: proc(p: ^Parser, type: ast.KotlinAnnotation) -> bool {
+    if p.cur_token.type != lexer.ANNOTATION {
+        return false
+    }
+    if (string_utils.string_to_annotation_type(p.cur_token.literal) != type) {
+        return false
+    }
+
     next_token(p)
     return true
 }

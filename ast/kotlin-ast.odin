@@ -95,6 +95,14 @@ KotlinPrimitiveMetadata :: struct {
     is_lexer_keyword: bool,
 }
 
+KotlinAnnotation :: enum {
+    RESTCONTROLLER,
+    REQUIREACCESS,
+    REQUESTMAPPING,
+    POSTMAPPING,
+    UNKNOWN,
+}
+
 KOTLIN_PRIMITIVES :: []KotlinPrimitiveMetadata{
     {.String,   "String",           "String",   "string",   true    },
     {.Int,      "Int",              "INT",      "number",   false   },

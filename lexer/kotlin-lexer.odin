@@ -14,8 +14,6 @@ STRING_LIT :: "STRING_LIT"
 LT :: "<"
 GT :: ">"
 
-ATSYMBOL :: "@"
-
 // Delimiters
 COMMA 	:: ","
 DOT 	:: "."
@@ -47,11 +45,7 @@ STRING :: "STRING"
 BOOL :: "BOOL"
 
 //Annotation types
-RESTCONTROLLER 	:: "RestController"
-REQUIREACCESS	:: "RequireAccess"
-	//HTML TYPES
-REQUESTMAPPING 	:: "RequestMapping"
-POSTMAPPING 	:: "PostMapping"
+ANNOTATION :: "ANNOTATION"
 
 //Ambiguous category, it is an identifier but not in context it is needed
 PATH :: "path"
@@ -72,10 +66,6 @@ build_keywords_map :: proc() -> map[string]TokenType {
         "var"       = VAR,
         "override"  = OVERRIDE,
 		"fun"		= FUN,
-		"RestController" 	= RESTCONTROLLER,
-		"RequestMapping" 	= REQUESTMAPPING,
-		"PostMapping"		= POSTMAPPING,
-		"RequireAccess"		= REQUIREACCESS,
 		"path"		= PATH,
 		
     }
@@ -202,8 +192,10 @@ next_token :: proc(l: ^Lexer) -> Token {
 		tok.type = STRING_LIT
 		tok.literal = read_string(l)
 	case '@':
-		tok.type = ATSYMBOL
-		tok.literal = "@"
+		tok.type = ANNOTATION
+        read_char(l)
+		tok.literal = read_identifier(l)
+		return tok
 	case:
 		if is_letter(l.ch) {
 			tok.literal = read_identifier(l)

@@ -2,20 +2,14 @@
 package parser
 
 import "../lexer"
+import "../string_utils"
 import "core:fmt"
 
 parse_controller :: proc(p: ^Parser) -> string {
-    if !expect_token(p, lexer.RESTCONTROLLER) {
+    if (string_utils.string_to_annotation_type(p.cur_token.literal) != .REQUESTMAPPING) {
         return ""
     }
-
-    if !expect_token(p, lexer.ATSYMBOL) {
-        return ""
-    }
-
-    if !expect_token(p, lexer.REQUESTMAPPING) {
-        return ""
-    }
+    next_token(p)
 
     return parse_mapping(p)
 }
