@@ -3,28 +3,49 @@ package main
 import "core:fmt"
 import "core:strings"
 import "ast"
+import os "core:os/os2"
 
-generate_typescript_endpoint :: proc(endpoint: ^ast.Endpoint) -> string {
+generate_typescript_api :: proc(controller: ast.Controller) {
     builder := strings.builder_make()
     defer strings.builder_destroy(&builder)
+
+    generate_imports(controller.rootEndpoint, &builder)
+
+    strings.write_string(&builder, strings.concatenate({"const rootApi = \"", controller.rootEndpoint, "\"\n\n"}))
+
+    for endpoint in controller.endpoints {
+        generate_typescript_endpoint(endpoint, &builder)
+        strings.write_string(&builder, "\n")
+    }
+    ok := os.write_entire_file(strings.concatenate({"./generated/", controller.rootEndpoint,".ts"}), strings.to_string(builder))
+    if ok != nil {
+        fmt.eprintln("Failed to write file")
+    }
+}
+
+generate_imports :: proc(s: string, b: ^strings.Builder) {
+    strings.write_string(b, "import * as DTO from \"./dto.ts\";\n")
+    strings.write_string(b, "import Axios from 'axios';\n")
     
-    strings.write_string(&builder, "export async function ")
-    strings.write_string(&builder, endpoint.name)
-    strings.write_string(&builder, "(")
+    strings.write_string(b, "\n")
+}
+
+generate_typescript_endpoint :: proc(endpoint: ^ast.Endpoint, b: ^strings.Builder){    
+    strings.write_string(b, "export async function ")
+    strings.write_string(b, endpoint.name)
+    strings.write_string(b, "(")
     
-    generate_constructor(&builder, endpoint)
+    generate_constructor(b, endpoint)
     
-    strings.write_string(&builder, "): ")
+    strings.write_string(b, "): ")
     
-    generate_return_type(&builder, endpoint)
+    generate_return_type(b, endpoint)
     
-    strings.write_string(&builder, " {\n")
+    strings.write_string(b, " {\n")
     
-    generate_function_body(&builder, endpoint)
+    generate_function_body(b, endpoint)
     
-    strings.write_string(&builder, "}\n")
-    
-    return strings.clone(strings.to_string(builder))
+    strings.write_string(b, "}\n")
 }
 
 generate_constructor :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
@@ -41,7 +62,7 @@ generate_constructor :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     }
     
     if len(endpoint.body.name) > 0 {
-        strings.write_string(b, ", body: ")
+        strings.write_string(b, ", body: DTO.")
         strings.write_string(b, endpoint.body.name)
     }
 }
@@ -50,6 +71,7 @@ generate_return_type :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     strings.write_string(b, "Promise<")
     
     if len(endpoint.dto.name) > 0 {
+        strings.write_string(b, "DTO.")
         if(endpoint.dto.kotlinType == .List) {
             strings.write_string(b, endpoint.dto.type_params[0]) //List should always only have one typeparam, under the assumption that there is no nested
             strings.write_string(b, "[]")
@@ -70,7 +92,7 @@ generate_function_body :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     method_name := get_axios_method(endpoint.requestMethod)
     strings.write_string(b, method_name)
     
-    strings.write_string(b, "(`${url}")
+    strings.write_string(b, "(`${rootApi}")
     generate_url_path(b, endpoint)
     strings.write_string(b, "`")
     
@@ -127,18 +149,4 @@ get_axios_method :: proc(method: ast.HTTP_REQUEST_METHOD) -> string {
             return "get" // Default fallback
     }
     return "get"
-}
-
-// Generate all endpoints from a controller
-generate_all_endpoints :: proc(controller: ^ast.Controller) -> string {
-    builder := strings.builder_make()
-    defer strings.builder_destroy(&builder)
-    
-    for endpoint in controller.endpoints {
-        endpoint_code := generate_typescript_endpoint(endpoint)
-        strings.write_string(&builder, endpoint_code)
-        strings.write_string(&builder, "\n")
-    }
-    
-    return strings.clone(strings.to_string(builder))
 }

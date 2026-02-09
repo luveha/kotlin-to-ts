@@ -6,31 +6,41 @@ import os "core:os/os2"
 import "ast"
 import "string_utils"
 
-generateTypescript :: proc(k: ast.KotlinClass) {
+generateDTOs :: proc(kList: [dynamic]ast.KotlinClass) {
     builder := strings.builder_make()
-    
+    defer strings.builder_destroy(&builder)
+
+    for kt in kList {
+        generateTypescript(kt, &builder)
+    }
+    ok := os.write_entire_file("./generated/dto.ts", strings.to_string(builder))
+    if ok != nil {
+        fmt.eprintln("Failed to write file")
+    }
+}
+
+generateTypescript :: proc(k: ast.KotlinClass, b: ^strings.Builder) {
     switch k.classType {
         case .Class, .Interface:
             is_type_alias := len(k.fields) == 0 && k.extends != nil
 
             if(is_type_alias) {
-                generate_type_alias(&builder, k)
+                generate_type_alias(b, k)
             } else {
-                generate_interface(&builder, k)
+                generate_interface(b, k)
             }
         case .Enum:
-            generate_enum(&builder, k)
+            generate_enum(b, k)
     }
     
-    fmt.printfln(strings.to_string(builder))
 }
 
 generate_export_type :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
-    // This is made under the assumption that only classes can be received in ts since no instance of an interface can be created and sent
+    // Legacy, but kept so it is possible to change if needed
     switch k.classType {
-        case .Class: strings.write_string(b, "export ")
-        case .Interface:
-        case .Enum:
+        case .Class:     strings.write_string(b, "export ")
+        case .Interface: strings.write_string(b, "export ")
+        case .Enum:      strings.write_string(b, "export ")
     }
 }
 
@@ -52,6 +62,7 @@ generate_enum :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
             strings.write_string(b, ` | `)
         }
     }
+    strings.write_string(b, "\n")
 }
 
 generate_interface :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
@@ -65,7 +76,7 @@ generate_interface :: proc(b: ^strings.Builder, k: ast.KotlinClass) {
         strings.write_string(b, k.extends^.name)
         generateGenerics(b, k.extends.type_params)
     }
-    strings.write_string(b, " {{\n")
+    strings.write_string(b, " {\n")
 
     oneIndent := string_utils.make_indent(1)
     for t in k.fields {

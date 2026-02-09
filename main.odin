@@ -107,14 +107,15 @@ main :: proc() {
 
     findMissingEnums(dir,pInfo)
 
-    for kt in pInfo.ktClasses {
-        generateTypescript(kt)
+    if !os.is_dir("generated") {
+        os.make_directory("generated")
     }
 
+    generateDTOs(pInfo.ktClasses)
+
+
     for c in pInfo.controllers {
-        for endp in c.endpoints {
-            fmt.println(generate_typescript_endpoint(endp))
-        }
+        generate_typescript_api(c)
     }
 }
 
