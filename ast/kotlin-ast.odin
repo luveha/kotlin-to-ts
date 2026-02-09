@@ -23,8 +23,8 @@ Endpoint :: struct {
     name: string,
     url: string,
     param: QueryParam,
-    nameOfRequestBody: ^KotlinClass,
-    nameOfSendBody: ^KotlinClass
+    body: string,
+    dto: string,
 }
 
 QueryParam :: enum {

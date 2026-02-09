@@ -251,6 +251,12 @@ parseControllers :: proc(pInfo: ^ProjectInfo) {
             p := parser.new_parser(l)
             file := parser.parse_file(p)
             fmt.printfln(file.rootEndpoint)
+
+            i := 0;
+            for kt in file.classes {
+                i += 1;
+            }
+            fmt.println("Number of classes in controller: %i", i)
         }
     }
 }
