@@ -41,6 +41,10 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
         ast.free_endpoint(endp)
         return nil
     }
+    if !parse_dto(p, endp) {
+        ast.free_endpoint(endp)
+        return nil
+    }
     
     return endp
 }
@@ -179,6 +183,7 @@ parse_parameters :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
             ast.highest_param(s, e)
         }
     }
+    next_token(p)
 
     return true
 }
@@ -192,7 +197,7 @@ parse_param :: proc(p: ^Parser) -> (bool, string) {
         return false, ""
     }
 
-    if(cur_token_is(p, lexer.IDENT)) {
+    if(cur_token_is(p, lexer.IDENT) || is_kotlin_primitive(p.cur_token)) {
         v := p.cur_token.literal
         next_token(p)
         
@@ -200,14 +205,24 @@ parse_param :: proc(p: ^Parser) -> (bool, string) {
     
         return true, v
     }
-    else if (is_kotlin_primitive(p.cur_token)) {
-        v := p.cur_token.literal
-        next_token(p)
-        
-        skip_optional(p)
-    
-        return true, v
+    return false, ""
+}
+
+parse_dto :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
+
+    if(!expect_token(p, lexer.COLON)) {
+        if(cur_token_is(p, lexer.LBRACE)) {
+            return true
+        }
+        return false
     }
 
-    return false, ""
+    if(cur_token_is(p, lexer.IDENT) || is_kotlin_primitive(p.cur_token)) {
+        e.dto = p.cur_token.literal
+        next_token(p)
+            
+        return true
+    }
+    
+    return true
 }

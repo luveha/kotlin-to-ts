@@ -56,13 +56,13 @@ expect_token_and_lit :: proc(p: ^Parser, type: lexer.TokenType, lit: string) -> 
     return false
 }
 
-skip_paren :: proc(p: ^Parser) {
+skip_brackets_type :: proc(p: ^Parser, start: lexer.TokenType, end: lexer.TokenType) {
     paren_depth := 0
 
     for {
-        if cur_token_is(p, lexer.LPAREN) {
+        if cur_token_is(p, start) {
             paren_depth += 1
-        } else if cur_token_is(p, lexer.RPAREN)  {
+        } else if cur_token_is(p, end)  {
             paren_depth -= 1
         }
 
@@ -72,4 +72,10 @@ skip_paren :: proc(p: ^Parser) {
             break
         }
     }
+}
+skip_paren :: proc(p: ^Parser) {
+    skip_brackets_type(p, lexer.LPAREN, lexer.RPAREN)
+}
+skip_brace :: proc(p: ^Parser) {
+    skip_brackets_type(p, lexer.LBRACE, lexer.RBRACE)
 }
