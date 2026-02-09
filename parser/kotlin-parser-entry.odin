@@ -39,12 +39,12 @@ parse_file :: proc(p: ^Parser) -> ^ast.File {
 
 	for p.cur_token.type != lexer.EOF {
         if(cur_token_is(p, lexer.ANNOTATION)) {
-            if(file.rootEndpoint == "") {
-                file.rootEndpoint = parse_controller(p)
+            if(file.controller.rootEndpoint == "") {
+                file.controller.rootEndpoint = parse_controller(p)
             } else {
                 endp := parse_endpoint(p)
 				if endp != nil {
-					append(&file.endpoint, endp)
+					append(&file.controller.endpoints, endp)
 				}
             }
         } 

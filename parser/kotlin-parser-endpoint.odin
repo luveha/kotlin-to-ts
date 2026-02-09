@@ -202,7 +202,7 @@ parse_param :: proc(p: ^Parser) -> (bool, string) {
         v := p.cur_token.literal
         next_token(p)
         
-        skip_optional(p)
+        skip_semi_or_comma(p)
     
         return true, v
     }

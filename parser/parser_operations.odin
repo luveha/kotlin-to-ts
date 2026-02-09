@@ -18,7 +18,7 @@ peek_token_is :: proc(p: ^Parser, t: lexer.TokenType) -> bool {
 	return p.peek_token.type == t
 }
 
-skip_optional :: proc(p: ^Parser) {
+skip_semi_or_comma :: proc(p: ^Parser) {
     if p.cur_token.type == lexer.COMMA {
         next_token(p)
     } 

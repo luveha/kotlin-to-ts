@@ -103,10 +103,10 @@ main :: proc() {
     parseKotlinFiles(pInfo)
     parseControllers(pInfo)
 
-    findMissingDefinitions(dir,pInfo)
+    findMissingEnums(dir,pInfo)
 
     for kt in pInfo.ktClasses {
-        //generateTypescript(kt)
+        generateTypescript(kt)
     }
 }
 
@@ -189,35 +189,8 @@ parseKotlinFiles :: proc(pInfo: ^ProjectInfo) {
             it := string(data)
             l := lexer.new_lexer(it)
             p := parser.new_parser(l)
-            ktClasses := parser.parse_file(p)
-            for kt in ktClasses.classes {
-                append(&pInfo.ktClasses, kt^)
-                if(set.contains(pInfo.undefinedTypes, kt.name)) {
-                    set.remove(&pInfo.undefinedTypes, kt.name)
-                }
-                set.add(&pInfo.definedTypes, kt.name)
-
-                if(kt.extends != nil) {
-                    if(!(set.contains(pInfo.definedTypes, kt.extends.name))){
-                        set.add(&pInfo.undefinedTypes, kt.extends.name)
-                    }
-                    for tp in kt.extends.type_params {
-                        type := ast.get_kotlin_type_from_string(tp)
-                        if(!(set.contains(pInfo.definedTypes, tp) && type != .TypeParam )){
-                            set.add(&pInfo.undefinedTypes, tp)
-                        }
-                    }
-                }
-
-                for f in kt.fields {
-                    if(!(set.contains(pInfo.definedTypes, f.fieldType.name))) {
-                        if(f.fieldType.kotlinType == ast.KotlinType.TypeParam){
-                            continue
-                        }
-                        set.add(&pInfo.undefinedTypes, f.fieldType.name)
-                    }
-                }
-            }
+            file := parser.parse_file(p)
+            process_parsed_classes(pInfo, file.classes)
         }
     }
 }
@@ -250,29 +223,12 @@ parseControllers :: proc(pInfo: ^ProjectInfo) {
             l := lexer.new_lexer(it)
             p := parser.new_parser(l)
             file := parser.parse_file(p)
-            fmt.printfln("Root: %s", file.rootEndpoint)
-            fmt.printfln("----------")
-            for z in file.endpoint {
-                if(z != nil) {
-                    fmt.printfln("Name: %s", z.name)
-                    fmt.printfln("Url: %s", z.url)
-                    fmt.printfln("Queryparam: %s", z.param)
-                    fmt.printfln("RequestMethod: %s", z.requestMethod)
-                    fmt.printfln("Body class name: %s", z.body)
-                    fmt.printfln("DTO class name: %s", z.dto)
-                    fmt.printfln("----------")
-                }
-            }
-            i := 0;
-            for kt in file.classes {
-                i += 1;
-            }
-            fmt.println("Number of classes in controller: %i", i)
+            process_parsed_classes(pInfo, file.classes)
         }
     }
 }
 
-findMissingDefinitions :: proc(startDir: string, pInfo: ^ProjectInfo) {
+findMissingEnums :: proc(startDir: string, pInfo: ^ProjectInfo) {
     projectDir := "/src/main/kotlin/"
     path := strings.join({startDir, projectDir}, "")
 
@@ -313,6 +269,38 @@ findMissingDefinitions :: proc(startDir: string, pInfo: ^ProjectInfo) {
             }
             
             //defer delete(data, context.allocator)
+        }
+    }
+}
+
+process_parsed_classes :: proc(pInfo: ^ProjectInfo, ktClasses: [dynamic]^ast.KotlinClass) {
+    for kt in ktClasses {
+        append(&pInfo.ktClasses, kt^)
+
+        if set.contains(pInfo.undefinedTypes, kt.name) {
+            set.remove(&pInfo.undefinedTypes, kt.name)
+        }
+        set.add(&pInfo.definedTypes, kt.name)
+
+        if kt.extends != nil {
+            if !(set.contains(pInfo.definedTypes, kt.extends.name)) {
+                set.add(&pInfo.undefinedTypes, kt.extends.name)
+            }
+            for tp in kt.extends.type_params {
+                type := ast.get_kotlin_type_from_string(tp)
+                if !(set.contains(pInfo.definedTypes, tp) && type != .TypeParam) {
+                    set.add(&pInfo.undefinedTypes, tp)
+                }
+            }
+        }
+
+        for f in kt.fields {
+            if !(set.contains(pInfo.definedTypes, f.fieldType.name)) {
+                if f.fieldType.kotlinType == ast.KotlinType.TypeParam {
+                    continue
+                }
+                set.add(&pInfo.undefinedTypes, f.fieldType.name)
+            }
         }
     }
 }

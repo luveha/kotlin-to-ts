@@ -2,22 +2,29 @@ package ast
 
 File :: struct {
 	classes: [dynamic]^KotlinClass,
-    rootEndpoint: string,
-    endpoint: [dynamic]^Endpoint
+    controller: ^Controller
 }
 
 new_file :: proc() -> ^File {
 	file := new(File)
     classes := make([dynamic]^KotlinClass)
+    controller := new(Controller)
     endpoint := make([dynamic]^Endpoint)
 
 	file.classes = classes
-    file.endpoint = endpoint
+
+    controller.endpoints = endpoint
+    file.controller = controller
 
 	return file
 }
 
 // END POINT START
+
+Controller :: struct {
+    rootEndpoint: string,
+    endpoints: [dynamic]^Endpoint
+}
 
 Endpoint :: struct {
     name:           string,

@@ -66,10 +66,21 @@ parse_generic_impl_or_values :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
         case lexer.COLON:
             next_token(p)
             parse_impl(p,kt)
-        case lexer.LBRACE, lexer.LPAREN:
+        case lexer.LBRACE:
             next_token(p)
             if(kt.classType == .Enum) {
                 next_token(p)
+                parse_enum(p, kt)
+            } else {
+                parse_content(p, kt)
+            }
+        case lexer.LPAREN:
+            next_token(p)
+            if(kt.classType == .Enum) {
+                skip_paren(p)
+                if(!expect_token(p, lexer.LBRACE)) {
+                    return
+                }
                 parse_enum(p, kt)
             } else {
                 parse_content(p, kt)
@@ -100,9 +111,13 @@ parse_enum :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
     append(&kt.fields, field)
 
     next_token(p)
+    if(p.cur_token.type == lexer.LPAREN) {
+        skip_paren(p)
+    }
     if(p.cur_token.type == lexer.COMMA) {
         next_token(p)
     }
+    
     parse_enum(p,kt)
 }
 
@@ -265,7 +280,7 @@ parse_content :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
         if p.cur_token.type == lexer.OVERRIDE {
             next_token(p)
             parse_field(p,true)
-            skip_optional(p)
+            skip_semi_or_comma(p)
             continue
         }
 
@@ -290,6 +305,6 @@ parse_content :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
         }
         append(&kt.fields, field)
 
-        skip_optional(p)
+        skip_semi_or_comma(p)
     }
 }
