@@ -164,6 +164,27 @@ free_endpoint :: proc(e: ^Endpoint) {
     free(e)
 }
 
+parse_query_param :: proc(s: string) -> (QueryParam, bool) {
+    switch s {
+        case "Firm":       return .Firm, true
+        case "Engagement": return .Engagement, true
+        case "Task":       return .Task, true
+        case:              return .None, false
+    }
+}
+
+highest_param :: proc(s: string, e: ^Endpoint) {
+    other, ok := parse_query_param(s)
+    if !ok {
+        return
+    }
+
+    if int(other) < int(e.param) {
+        return 
+    }
+    e.param = other
+}
+
 freeKotlinTypeDefinition :: proc(t: ^KotlinTypeDefinition) {
     if t == nil {
         return

@@ -37,7 +37,7 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
         ast.free_endpoint(endp)
         return nil
     }
-    if !parse_parameters(p, endp) {
+    if !parse_constructor(p, endp) {
         ast.free_endpoint(endp)
         return nil
     }
@@ -174,7 +174,9 @@ parse_parameters :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
                 if !b { return false }
             }
         } else {
-            next_token(p)
+            b, s := parse_param(p)
+            if !b { return false }
+            ast.highest_param(s, e)
         }
     }
 
