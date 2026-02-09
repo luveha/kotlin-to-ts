@@ -40,6 +40,7 @@ ENUM :: "Enum"
 VAL :: "Val"
 VAR :: "var"
 OVERRIDE :: "Override"
+FUN :: "fun"
 
 //Kotlin class prims
 STRING :: "STRING"
@@ -70,6 +71,7 @@ build_keywords_map :: proc() -> map[string]TokenType {
         "val"       = VAL,
         "var"       = VAR,
         "override"  = OVERRIDE,
+		"fun"		= FUN,
 		"RestController" 	= RESTCONTROLLER,
 		"RequestMapping" 	= REQUESTMAPPING,
 		"PostMapping"		= POSTMAPPING,

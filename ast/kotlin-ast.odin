@@ -42,6 +42,7 @@ HTTP_REQUEST_METHOD :: enum {
 }
 
 QueryParam :: enum {
+    None,
     Firm,
     Engagement,
     Task,

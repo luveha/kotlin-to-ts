@@ -29,13 +29,13 @@ parse_class :: proc(p: ^Parser) -> ^ast.KotlinClass {
     next_token(p)
 
     if kt != nil {
-        parse_function_name(p, kt)
+        parse_class_name(p, kt)
     }
 
     return kt
 }
 
-parse_function_name :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
+parse_class_name :: proc(p: ^Parser, kt: ^ast.KotlinClass) {
     if(kt.classType == .Enum && p.cur_token.type == lexer.CLASS) {
         next_token(p)
     }

@@ -250,8 +250,19 @@ parseControllers :: proc(pInfo: ^ProjectInfo) {
             l := lexer.new_lexer(it)
             p := parser.new_parser(l)
             file := parser.parse_file(p)
-            fmt.printfln(file.rootEndpoint)
-
+            fmt.printfln("Root: %s", file.rootEndpoint)
+            fmt.printfln("----------")
+            for z in file.endpoint {
+                if(z != nil) {
+                    fmt.printfln("Name: %s", z.name)
+                    fmt.printfln("Url: %s", z.url)
+                    fmt.printfln("Queryparam: %s", z.param)
+                    fmt.printfln("RequestMethod: %s", z.requestMethod)
+                    fmt.printfln("Body class name: %s", z.body)
+                    fmt.printfln("DTO class name: %s", z.dto)
+                    fmt.printfln("----------")
+                }
+            }
             i := 0;
             for kt in file.classes {
                 i += 1;

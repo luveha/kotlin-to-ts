@@ -32,10 +32,10 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
     if(expect_token(p, lexer.ATSYMBOL)) {
         skip_require_access(p)
     }
-
-    //print_next_x_tokens(p, 4)
     
-    return nil
+    parse_function_name(p, endp)
+    
+    return endp
 }
 
 skip_require_access :: proc(p: ^Parser) -> bool {
@@ -58,6 +58,7 @@ parse_post_mapping :: proc(p: ^Parser, e: ^ast.Endpoint) {
         return
     }
     e.url = strings.clone(p.cur_token.literal)
+    next_token(p)
 
     expect_token(p, lexer.RPAREN)
 }
@@ -84,8 +85,6 @@ parse_request_mapping :: proc(p: ^Parser, e: ^ast.Endpoint) {
     }
     
     parse_request_method(p, e)
-
-    //s := parse_path_value(p) */
 }
 
 parse_request_method :: proc(p: ^Parser, e: ^ast.Endpoint) {
@@ -122,6 +121,17 @@ parse_request_method :: proc(p: ^Parser, e: ^ast.Endpoint) {
     if(!expect_token(p, lexer.RPAREN)) {
         return
     }
+}
 
-    print_next_x_tokens(p, 4)
+parse_function_name :: proc(p: ^Parser, e: ^ast.Endpoint) {
+    if(!expect_token(p, lexer.FUN)) {
+        return
+    }
+
+    if(!cur_token_is(p, lexer.IDENT)) {
+        return
+    }
+    e.name = p.cur_token.literal
+    next_token(p)
+
 }

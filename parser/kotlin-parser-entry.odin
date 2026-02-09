@@ -43,7 +43,10 @@ parse_file :: proc(p: ^Parser) -> ^ast.File {
             if(file.rootEndpoint == "") {
                 file.rootEndpoint = parse_controller(p)
             } else {
-                parse_endpoint(p)
+                endp := parse_endpoint(p)
+				if endp != nil {
+					append(&file.endpoint, endp)
+				}
             }
         } 
         else {
