@@ -22,6 +22,21 @@ make_indent :: proc(indent: int) -> string {
     return strings.repeat("  ", indent)
 }
 
+string_to_http_type :: proc(s: string) -> ast.HTTP_REQUEST_METHOD {
+    switch s {
+        case "GET":     return .GET
+        case "HEAD":    return .HEAD
+        case "POST":    return .POST
+        case "PUT":     return .PUT
+        case "DELETE":  return .DELETE
+        case "PATCH":   return .PATCH
+        case "OPTIONS": return .OPTIONS
+        case "CONNECT": return .CONNECT
+        case "TRACE":   return .TRACE
+    }
+
+    return .NON_PARSABLE
+}
 
 kotlinTypeToString :: proc(t: ^ast.KotlinType) -> string {
     switch t^ {

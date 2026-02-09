@@ -17,7 +17,8 @@ GT :: ">"
 ATSYMBOL :: "@"
 
 // Delimiters
-COMMA :: ","
+COMMA 	:: ","
+DOT 	:: "."
 SEMICOLON :: ";"
 LPAREN :: "("
 RPAREN :: ")"
@@ -183,6 +184,9 @@ next_token :: proc(l: ^Lexer) -> Token {
 	case ',':
 		tok.type = COMMA
 		tok.literal = ","
+	case '.':
+		tok.type = DOT
+		tok.literal = "."
 	case '/':
 		tok.type = DASH
 		tok.literal = "/"

@@ -37,7 +37,8 @@ HTTP_REQUEST_METHOD :: enum {
     PATCH,
     OPTIONS,
     CONNECT,
-    TRACE
+    TRACE,
+    NON_PARSABLE,
 }
 
 QueryParam :: enum {

@@ -33,6 +33,15 @@ expect_token :: proc(p: ^Parser, type: lexer.TokenType) -> bool {
     return true
 }
 
+expect_token_and_lit :: proc(p: ^Parser, type: lexer.TokenType, lit: string) -> bool {
+    if p.cur_token.type == type && p.cur_token.literal == lit {
+        next_token(p)
+        return true
+    }
+
+    return false
+}
+
 skip_paren :: proc(p: ^Parser) {
     paren_depth := 0
 

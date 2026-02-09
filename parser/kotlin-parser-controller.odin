@@ -26,12 +26,12 @@ parse_mapping :: proc(p: ^Parser) -> string {
         return ""
     }
 
-    skip_path_if_present(p)
+    skip_path_start_if_present(p)
 
     return parse_path_value(p)
 }
 
-skip_path_if_present :: proc(p: ^Parser) {
+skip_path_start_if_present :: proc(p: ^Parser) {
     expect_token(p, lexer.PATH)
     expect_token(p, lexer.EQUALS)
     expect_token(p, lexer.LBRACKET)
