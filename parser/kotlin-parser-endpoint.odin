@@ -45,6 +45,7 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
         ast.free_endpoint(endp)
         return nil
     }
+    skip_brace(p)
     
     return endp
 }
@@ -223,6 +224,6 @@ parse_dto :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
             
         return true
     }
-    
+
     return true
 }
