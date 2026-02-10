@@ -11,7 +11,7 @@ generate_typescript_api :: proc(controller: ast.Controller) {
 
     generate_imports(controller.rootEndpoint, &builder)
 
-    strings.write_string(&builder, strings.concatenate({"const rootApi = \"", controller.rootEndpoint, "\"\n\n"}))
+    strings.write_string(&builder, strings.concatenate({"const rootApi = baseUrl + \"", controller.rootEndpoint, "\"\n\n"}))
 
     for endpoint in controller.endpoints {
         generate_typescript_endpoint(endpoint, &builder)
@@ -26,8 +26,33 @@ generate_typescript_api :: proc(controller: ast.Controller) {
 generate_imports :: proc(s: string, b: ^strings.Builder) {
     strings.write_string(b, "import * as DTO from \"./dto.ts\";\n")
     strings.write_string(b, "import Axios from 'axios';\n")
+    strings.write_string(b, "import { baseUrl } from \"./definition.ts\";\n")
     
     strings.write_string(b, "\n")
+}
+
+extract_path_variables :: proc(url: string, allocator := context.allocator) -> [dynamic]string {
+    context.allocator = allocator
+    
+    vars := make([dynamic]string)
+    
+    in_brace := false
+    start_idx := 0
+    
+    for char, i in url {
+        if char == '{' {
+            in_brace = true
+            start_idx = i + 1
+        } else if char == '}' && in_brace {
+            if i > start_idx {
+                var_name := url[start_idx:i]
+                append(&vars, strings.clone(var_name))
+            }
+            in_brace = false
+        }
+    }
+    
+    return vars
 }
 
 generate_typescript_endpoint :: proc(endpoint: ^ast.Endpoint, b: ^strings.Builder){    
@@ -59,6 +84,15 @@ generate_constructor :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
         case .Task:
             strings.write_string(b, ", taskId: string")
         case .None:
+    }
+    
+    path_vars := extract_path_variables(endpoint.url)
+    defer delete(path_vars)
+    
+    for var_name in path_vars {
+        strings.write_string(b, ", ")
+        strings.write_string(b, var_name)
+        strings.write_string(b, ": string")
     }
     
     if len(endpoint.body.name) > 0 {
@@ -115,8 +149,39 @@ generate_function_body :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     }
 }
 
+replace_path_variables :: proc(url: string, allocator := context.allocator) -> string {
+    context.allocator = allocator
+    
+    result := strings.builder_make()
+    defer strings.builder_destroy(&result)
+    
+    in_brace := false
+    brace_start := 0
+    
+    for char, i in url {
+        if char == '{' {
+            in_brace = true
+            brace_start = i
+            strings.write_string(&result, "$")
+            strings.write_byte(&result, '{')
+        } else if char == '}' && in_brace {
+            strings.write_byte(&result, '}')
+            in_brace = false
+        } else if !in_brace {
+            strings.write_byte(&result, u8(char))
+        } else {
+            strings.write_byte(&result, u8(char))
+        }
+    }
+    
+    return strings.clone(strings.to_string(result))
+}
+
 generate_url_path :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
-    strings.write_string(b, endpoint.url)
+    url_with_vars := replace_path_variables(endpoint.url)
+    defer delete(url_with_vars)
+    
+    strings.write_string(b, url_with_vars)
     
     switch endpoint.param {
         case .Firm:

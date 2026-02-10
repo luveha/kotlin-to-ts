@@ -6,6 +6,8 @@ import os "core:os/os2"
 import "ast"
 import "string_utils"
 
+defition: string = "export const baseUrl = import.meta.env.VITE_API_URL || \"https://api.revidocs.dk\";"
+
 generateDTOs :: proc(kList: [dynamic]ast.KotlinClass) {
     builder := strings.builder_make()
     defer strings.builder_destroy(&builder)
@@ -15,6 +17,11 @@ generateDTOs :: proc(kList: [dynamic]ast.KotlinClass) {
     }
     ok := os.write_entire_file("./generated/dto.ts", strings.to_string(builder))
     if ok != nil {
+        fmt.eprintln("Failed to write file")
+    }
+
+    ok2 := os.write_entire_file("./generated/definition.ts", defition)
+    if ok2 != nil {
         fmt.eprintln("Failed to write file")
     }
 }
