@@ -47,6 +47,18 @@ expect_token_and_annotation :: proc(p: ^Parser, type: ast.KotlinAnnotation) -> b
     return true
 }
 
+expect_indent_and_lit :: proc(p: ^Parser, lit: string) -> bool {
+    if p.cur_token.type != lexer.IDENT {
+        return false
+    }
+    if (p.cur_token.literal != lit) {
+        return false
+    }
+
+    next_token(p)
+    return true
+}
+
 expect_token_and_lit :: proc(p: ^Parser, type: lexer.TokenType, lit: string) -> bool {
     if p.cur_token.type == type && p.cur_token.literal == lit {
         next_token(p)

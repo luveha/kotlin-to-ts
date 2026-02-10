@@ -15,7 +15,9 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
     skip_require_access(p)
 
     success := false
+    is_annotation := false
     if cur_token_is(p, lexer.ANNOTATION) {
+        is_annotation = true
         #partial switch (string_utils.string_to_annotation_type(p.cur_token.literal)) {
             case .POSTMAPPING:
                 next_token(p)
@@ -26,8 +28,13 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
         }   
     }
 
+    if !is_annotation{
+        ast.free_endpoint(endp)
+        return nil
+    }
     if !success {
         ast.free_endpoint(endp)
+        append(&p.errors, strings.concatenate({"Failed in dto: \n", "    ", string_utils.print_context_window(p.l.input, p.l.position), "\n\n"}))  
         return nil
     }
 
@@ -35,15 +42,17 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
     
     if !parse_function_name(p, endp) {
         ast.free_endpoint(endp)
+        append(&p.errors, strings.concatenate({"Failed in function name: \n", "    ", string_utils.print_context_window(p.l.input, p.l.position), "\n\n"}))  
         return nil
     }
     if !parse_constructor(p, endp) {
-
         ast.free_endpoint(endp)
+        append(&p.errors, strings.concatenate({"Failed in constructor: \n", "    ", string_utils.print_context_window(p.l.input, p.l.position), "\n\n"}))
         return nil
     }
     if !parse_dto(p, endp) {
         ast.free_endpoint(endp)
+        append(&p.errors, strings.concatenate({"Failed in dto: \n", "    ", string_utils.print_context_window(p.l.input, p.l.position), "\n\n"}))  
         return nil
     }
     skip_brace(p)
@@ -168,27 +177,39 @@ parse_parameters :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
         if(cur_token_is(p, lexer.ANNOTATION)) {
             if(expect_token_and_annotation(p, .REQUESTBODY)) {
                 b, s := parse_param(p)
-                if(b) {
-                    def := new(ast.KotlinTypeDefinition)
+                if !b { return false }
 
-                    def.name = strings.clone(s)
-                    def.kotlinType = ast.get_kotlin_type_from_string(def.name)
-                    def.nullable = false
-                    type_params := make([dynamic]string)
-                    if p.cur_token.type == lexer.LT {
+                def := new(ast.KotlinTypeDefinition)
+
+                def.name = strings.clone(s)
+                def.kotlinType = ast.get_kotlin_type_from_string(def.name)
+                def.nullable = false
+                type_params := make([dynamic]string)
+                if p.cur_token.type == lexer.LT {
+                    next_token(p)
+                    for (!cur_token_is(p, lexer.GT) && !cur_token_is(p, lexer.EOF)) {
+                        append(&type_params, p.cur_token.literal)
                         next_token(p)
-                        for (!cur_token_is(p, lexer.GT) && !cur_token_is(p, lexer.EOF)) {
-                            append(&type_params, p.cur_token.literal)
-                            next_token(p)
-                        }
-                        def.type_params = type_params
                     }
-                    
-                    e.body = def^
+                    def.type_params = type_params
                 }
-                else {
-                    return false
+                
+                e.body = def^
+            } 
+            else if (expect_token_and_annotation(p, .REQUESTPARAM)) {
+                if(cur_token_is(p, lexer.LPAREN)) {
+                    skip_paren(p)
                 }
+                b, s := parse_param(p)
+                if !b { fmt.printfln("Failed-----"); return false }
+
+                def := new(ast.KotlinTypeDefinition)
+                def.name = strings.clone(s)
+                def.kotlinType = ast.KotlinType.ByteArray
+                type_params := make([dynamic]string)
+
+                e.body = def^
+                fmt.printfln("Success")
             } else {
                 next_token(p)
                 if(cur_token_is(p, lexer.LPAREN)) {
@@ -236,13 +257,25 @@ parse_dto :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
         }
         return false
     }
+    contains_response_entity: bool = false
+    if(expect_indent_and_lit(p, "ResponseEntity")) {
+        contains_response_entity = true
+        if(!expect_token(p, lexer.LT)) {
+            return false
+        }
+    }
 
-    if(cur_token_is(p, lexer.IDENT) || is_kotlin_primitive(p.cur_token)) {
+
+    if(cur_token_is(p, lexer.IDENT) || is_kotlin_primitive(p.cur_token) || cur_token_is(p, lexer.BYTEARRAY)) {
         def := new(ast.KotlinTypeDefinition)
         defer free(def)
 
         def.name = strings.clone(p.cur_token.literal)
-        def.kotlinType = ast.get_kotlin_type_from_string(def.name)
+        if(contains_response_entity){
+            def.kotlinType = .ByteArray
+        }else {
+            def.kotlinType = ast.get_kotlin_type_from_string(def.name)
+        }
         def.nullable = false //Huristic for that it should never return null if it can
         type_params := make([dynamic]string)
         
@@ -259,6 +292,12 @@ parse_dto :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
             def.type_params = type_params
         }
         e.dto = def^
+
+        if(contains_response_entity) {
+            if(!expect_token(p, lexer.GT)) {
+                return false
+            }
+        }
 
         return true
     }

@@ -52,6 +52,7 @@ PATH :: "path"
 
 //Kotlin types
 DATE :: "DATE"
+BYTEARRAY :: "BYTEARRAY"
 //Kotlin nested types
 LIST :: "LIST"
 
@@ -67,7 +68,7 @@ build_keywords_map :: proc() -> map[string]TokenType {
         "override"  = OVERRIDE,
 		"fun"		= FUN,
 		"path"		= PATH,
-		
+		"ByteArray" = BYTEARRAY
     }
     
     // Add primitive types from metadata

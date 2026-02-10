@@ -1,5 +1,6 @@
 package string_utils
 
+import "core:strconv"
 import "core:strings"
 import "core:fmt"
 import "../ast"
@@ -45,6 +46,7 @@ string_to_annotation_type :: proc(s: string) -> ast.KotlinAnnotation {
         case "RequestMapping":  return ast.KotlinAnnotation.REQUESTMAPPING
         case "PostMapping":     return ast.KotlinAnnotation.POSTMAPPING
         case "RequestBody":     return ast.KotlinAnnotation.REQUESTBODY
+        case "RequestParam":    return ast.KotlinAnnotation.REQUESTPARAM
     }
     return ast.KotlinAnnotation.UNKNOWN
 }
@@ -59,6 +61,7 @@ kotlinTypeToString :: proc(t: ^ast.KotlinType) -> string {
         case .List:         return "List"
         case .Date:         return "Date"
         case .TypeParam:    return "TypeParam"
+        case .ByteArray:    return "ByteArray"
     }
     return ""
 }
@@ -122,3 +125,23 @@ printKotlinClass :: proc(k: ast.KotlinClass) {
     fmt.println("},")
 }
 
+print_context_window :: proc(s: string, index: int) -> string {
+    if len(s) == 0 {
+        fmt.println("String is empty.")
+        return ""
+    }
+
+    safe_index := clamp(index, 0, len(s) - 1)
+
+    start := max(0, safe_index - 10)
+    end   := min(len(s), safe_index + 11)
+
+    prev_part := s[start:safe_index] // 
+    
+    mid_char_byte := [1]u8{s[safe_index]}
+    mid_char_str  := string(mid_char_byte[:])
+    
+    next_part := s[safe_index + 1:end]
+    
+    return strings.concatenate({prev_part, "||", mid_char_str, "||", next_part})
+}

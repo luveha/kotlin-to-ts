@@ -66,6 +66,7 @@ KotlinType :: enum {
     Date,
     List,
     TypeParam,
+    ByteArray,
 }
 
 KotlinTypeDefinition :: struct {
@@ -108,16 +109,24 @@ KotlinAnnotation :: enum {
     REQUESTMAPPING,
     POSTMAPPING,
     REQUESTBODY,
+    REQUESTPARAM,
     UNKNOWN,
 }
-
+/*
+    1. enum_value: Enum value of the Kotlin type
+    2. kotlin_name: Name of Kotlin type
+    3. lexer_token_name: The value of the lexer token
+    4. typescript_name: The typescript type
+    5. is_lexer_keyword: Is a keyword in lexer. Dont remember what it does
+*/
 KOTLIN_PRIMITIVES :: []KotlinPrimitiveMetadata{
-    {.String,   "String",           "String",   "string",   true    },
-    {.Int,      "Int",              "INT",      "number",   false   },
-    {.Float,    "Float",            "FLOAT",    "number",   false   },
-    {.Bool,     "Boolean",          "BOOL",     "boolean",  true    },
-    {.Date,     "ZonedDateTime",    "DATE",     "Date",     true    },
-    {.List,     "List",             "LIST",     "[]",       true    },
+    {.String,       "String",           "String",       "string",   true    },
+    {.Int,          "Int",              "INT",          "number",   false   },
+    {.Float,        "Float",            "FLOAT",        "number",   false   },
+    {.Bool,         "Boolean",          "BOOL",         "boolean",  true    },
+    {.Date,         "ZonedDateTime",    "DATE",         "Date",     true    },
+    {.List,         "List",             "LIST",         "[]",       true    },
+    {.ByteArray,    "ByteArray",        "BYTEARRAY",    "Err",      true    },
 }
 
 get_kotlin_type_from_string :: proc(s: string) -> KotlinType {

@@ -234,7 +234,9 @@ parseControllers :: proc(pInfo: ^ProjectInfo) {
             file := parser.parse_file(p)
             process_parsed_classes(pInfo, file.classes)
             process_parsed_controllers(pInfo, file.controller)
-
+            for e in p.errors {
+                fmt.printfln("%s", e)
+            }
         }
     }
 }

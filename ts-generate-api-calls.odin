@@ -68,6 +68,8 @@ generate_typescript_endpoint :: proc(endpoint: ^ast.Endpoint, b: ^strings.Builde
     
     strings.write_string(b, " {\n")
     
+    generate_form_data(b, endpoint)
+
     generate_function_body(b, endpoint)
     
     strings.write_string(b, "}\n")
@@ -96,8 +98,13 @@ generate_constructor :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     }
     
     if len(endpoint.body.name) > 0 {
-        strings.write_string(b, ", body: DTO.")
-        strings.write_string(b, endpoint.body.name)
+        #partial switch endpoint.body.kotlinType {
+            case .ByteArray:
+                strings.write_string(b, ", file: File")
+            case:
+                strings.write_string(b, ", body: DTO.")
+                strings.write_string(b, endpoint.body.name)
+        }
     }
 }
 
@@ -105,19 +112,32 @@ generate_return_type :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     strings.write_string(b, "Promise<")
     
     if len(endpoint.dto.name) > 0 {
-        strings.write_string(b, "DTO.")
-        if(endpoint.dto.kotlinType == .List) {
-            strings.write_string(b, endpoint.dto.type_params[0]) //List should always only have one typeparam, under the assumption that there is no nested
-            strings.write_string(b, "[]")
-        }
-        else {
-            strings.write_string(b, endpoint.dto.name)
-        }
+        
+        #partial switch endpoint.dto.kotlinType {
+            case .List:
+                strings.write_string(b, "DTO.")
+                strings.write_string(b, endpoint.dto.type_params[0]) //List should always only have one typeparam, under the assumption that there is no nested
+                strings.write_string(b, "[]")
+            case .ByteArray:
+                strings.write_string(b, "Test")
+            case .Struct:
+                strings.write_string(b, "DTO.")
+                strings.write_string(b, endpoint.dto.name)
+            case:
+                strings.write_string(b, endpoint.dto.name)
+        }   
     } else {
         strings.write_string(b, "void")
     }
     
     strings.write_string(b, ">")
+}
+
+generate_form_data :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
+    if(endpoint.body.kotlinType == .ByteArray) {
+        strings.write_string(b, "  const formData = new FormData();\n")
+        strings.write_string(b, "  formData.append(\"file\", file);\n\n")
+    }
 }
 
 generate_function_body :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
@@ -133,20 +153,30 @@ generate_function_body :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     has_body := len(endpoint.body.name) > 0
     
     if has_body {
-        strings.write_string(b, ", body")
+        #partial switch endpoint.body.kotlinType {
+            case .ByteArray:
+                strings.write_string(b, ", formData")
+            case:
+                strings.write_string(b, ", body")
+        }
     }
     
     strings.write_string(b, ", {\n")
     strings.write_string(b, "    headers: {\n")
     strings.write_string(b, "      Authorization: `Bearer ${kc}`,\n")
+    if(endpoint.body.kotlinType == .ByteArray) {
+        strings.write_string(b, "      \"Content-Type\": \"multipart/form-data\",\n")
+    }
     strings.write_string(b, "    },\n")
+    if (endpoint.dto.kotlinType == .ByteArray) {
+        strings.write_string(b, "    responseType: \"blob\",\n")
+    }
     strings.write_string(b, "  })")
     
     if len(endpoint.dto.name) > 0 {
-        strings.write_string(b, ".then(x => x.data);\n")
-    } else {
-        strings.write_string(b, ".then(() => {});\n")
+        strings.write_string(b, ".then(x => x.data);")
     }
+    strings.write_string(b, "\n")
 }
 
 replace_path_variables :: proc(url: string, allocator := context.allocator) -> string {

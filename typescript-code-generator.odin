@@ -137,6 +137,8 @@ generate_type :: proc(t: ast.KotlinTypeDefinition) -> string {
             strings.write_string(&builder, "Date")
         case .TypeParam:
             strings.write_string(&builder, t.name) 
+        case .ByteArray:
+            strings.write_string(&builder, "ERR") 
     }
 
     if t.nullable {
