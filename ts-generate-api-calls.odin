@@ -240,8 +240,8 @@ get_axios_method :: proc(method: ast.HTTP_REQUEST_METHOD) -> string {
             return "head"
         case .OPTIONS:
             return "options"
-        case .CONNECT, .TRACE, .NON_PARSABLE:
-            return "get" // Default fallback
+        case .CONNECT, .TRACE, .NON_PARSABLE, .UNKNOWN:
+            return "could_not_parse" // Default fallback
     }
     return "get"
 }

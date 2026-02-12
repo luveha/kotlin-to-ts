@@ -1,10 +1,8 @@
 package string_utils
 
-import "core:strconv"
 import "core:strings"
 import "core:fmt"
 import "../ast"
-import "base:runtime"
 
 copy_string :: proc(value: string, destination: ^string) {
     destination^ = strings.clone(value)
@@ -45,10 +43,19 @@ string_to_annotation_type :: proc(s: string) -> ast.KotlinAnnotation {
         case "RequireAccess":   return ast.KotlinAnnotation.REQUIREACCESS
         case "RequestMapping":  return ast.KotlinAnnotation.REQUESTMAPPING
         case "PostMapping":     return ast.KotlinAnnotation.POSTMAPPING
+        case "GetMapping":      return ast.KotlinAnnotation.GETMAPPING
         case "RequestBody":     return ast.KotlinAnnotation.REQUESTBODY
         case "RequestParam":    return ast.KotlinAnnotation.REQUESTPARAM
     }
     return ast.KotlinAnnotation.UNKNOWN
+}
+
+kotlin_annotation_to_http_method :: proc(annotation: ast.KotlinAnnotation) -> ast.HTTP_REQUEST_METHOD {
+    #partial switch annotation {
+        case .GETMAPPING:   return .GET
+        case .POSTMAPPING:  return .POST 
+        case:               return ast.HTTP_REQUEST_METHOD.NON_PARSABLE
+    }
 }
 
 kotlinTypeToString :: proc(t: ^ast.KotlinType) -> string {
@@ -125,7 +132,7 @@ printKotlinClass :: proc(k: ast.KotlinClass) {
     fmt.println("},")
 }
 
-print_context_window :: proc(s: string, index: int) -> string {
+print_context_window :: proc(lit: string, s: string, index: int) -> string {
     if len(s) == 0 {
         fmt.println("String is empty.")
         return ""
@@ -136,12 +143,9 @@ print_context_window :: proc(s: string, index: int) -> string {
     start := max(0, safe_index - 10)
     end   := min(len(s), safe_index + 11)
 
-    prev_part := s[start:safe_index] // 
-    
-    mid_char_byte := [1]u8{s[safe_index]}
-    mid_char_str  := string(mid_char_byte[:])
+    prev_part := s[start:safe_index] //
     
     next_part := s[safe_index + 1:end]
     
-    return strings.concatenate({prev_part, "||", mid_char_str, "||", next_part})
+    return strings.concatenate({prev_part, "||", lit, "||", next_part})
 }

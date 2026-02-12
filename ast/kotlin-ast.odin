@@ -46,6 +46,7 @@ HTTP_REQUEST_METHOD :: enum {
     CONNECT,
     TRACE,
     NON_PARSABLE,
+    UNKNOWN
 }
 
 QueryParam :: enum {
@@ -108,6 +109,7 @@ KotlinAnnotation :: enum {
     REQUIREACCESS,
     REQUESTMAPPING,
     POSTMAPPING,
+    GETMAPPING,
     REQUESTBODY,
     REQUESTPARAM,
     UNKNOWN,

@@ -13,19 +13,26 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
     endp := ast.new_endpoint()
     
     skip_require_access(p)
-
-    passed_post_mapping  := false
-    passed_request_mapping := false
+    success  := false
+    entered_post_mapping := false
+    entered_request_mapping := false
     is_annotation := false
     if cur_token_is(p, lexer.ANNOTATION) {
         is_annotation = true
-        #partial switch (string_utils.string_to_annotation_type(p.cur_token.literal)) {
-            case .POSTMAPPING:
+        annotation_type := string_utils.string_to_annotation_type(p.cur_token.literal)
+        #partial switch (annotation_type) {
+            case .POSTMAPPING, .GETMAPPING:
+                entered_post_mapping = true
                 next_token(p)
-                passed_post_mapping = parse_post_mapping(p, endp)
+                success = parse_get_post_mapping(p, endp, string_utils.kotlin_annotation_to_http_method(annotation_type))
             case .REQUESTMAPPING:
+                entered_request_mapping = true
                 next_token(p)
-                passed_request_mapping = parse_request_mapping(p, endp)
+                success = parse_request_mapping(p, endp)
+            case:
+                append(&p.errors, strings.concatenate({"Failed in wrong annotation type: \n", "    ", string_utils.print_context_window(p.cur_token.literal, p.l.input, p.l.position), "\n\n"}))  
+                ast.free_endpoint(endp)
+                return nil
         }   
     }
 
@@ -33,14 +40,16 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
         ast.free_endpoint(endp)
         return nil
     }
-    if !(passed_post_mapping || passed_request_mapping) {
+    if !(success) {
+        if(entered_post_mapping){
+            append(&p.errors, strings.concatenate({"Failed in postmapping: \n", "    ", string_utils.print_context_window(p.cur_token.literal, p.l.input, p.l.position), "\n\n"}))  
+        }
+        else if (entered_request_mapping) {
+            append(&p.errors, strings.concatenate({"Failed in requestmapping: \n", "    ", string_utils.print_context_window(p.cur_token.literal, p.l.input, p.l.position), "\n\n"}))  
+        } else {
+            append(&p.errors, strings.concatenate({"Internal parsing logic failed: \n", "    ", string_utils.print_context_window(p.cur_token.literal, p.l.input, p.l.position), "\n\n"}))  
+        }
         ast.free_endpoint(endp)
-        if(!passed_post_mapping){
-            append(&p.errors, strings.concatenate({"Failed in postmapping: \n", "    ", string_utils.print_context_window(p.l.input, p.l.position), "\n\n"}))  
-        }
-        else if (!passed_request_mapping) {
-            append(&p.errors, strings.concatenate({"Failed in requestmapping: \n", "    ", string_utils.print_context_window(p.l.input, p.l.position), "\n\n"}))  
-        }
         return nil
     }
 
@@ -48,17 +57,17 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
     
     if !parse_function_name(p, endp) {
         ast.free_endpoint(endp)
-        append(&p.errors, strings.concatenate({"Failed in function name: \n", "    ", string_utils.print_context_window(p.l.input, p.l.position), "\n\n"}))  
+        append(&p.errors, strings.concatenate({"Failed in function name: \n", "    ", string_utils.print_context_window(p.cur_token.literal, p.l.input, p.l.position), "\n\n"}))  
         return nil
     }
     if !parse_constructor(p, endp) {
         ast.free_endpoint(endp)
-        append(&p.errors, strings.concatenate({"Failed in constructor: \n", "    ", string_utils.print_context_window(p.l.input, p.l.position), "\n\n"}))
+        append(&p.errors, strings.concatenate({"Failed in constructor: \n", "    ", string_utils.print_context_window(p.cur_token.literal, p.l.input, p.l.position), "\n\n"}))
         return nil
     }
     if !parse_dto(p, endp) {
         ast.free_endpoint(endp)
-        append(&p.errors, strings.concatenate({"Failed in dto: \n", "    ", string_utils.print_context_window(p.l.input, p.l.position), "\n\n"}))  
+        append(&p.errors, strings.concatenate({"Failed in dto: \n", "    ", string_utils.print_context_window(p.cur_token.literal, p.l.input, p.l.position), "\n\n"}))  
         return nil
     }
     skip_brace(p)
@@ -74,11 +83,12 @@ skip_require_access :: proc(p: ^Parser) -> bool {
     return false
 }
 
-parse_post_mapping :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool{
-    e.requestMethod = ast.HTTP_REQUEST_METHOD.POST
+parse_get_post_mapping :: proc(p: ^Parser, e: ^ast.Endpoint, method: ast.HTTP_REQUEST_METHOD) -> bool{
+    e.requestMethod = method
 
     if (!expect_token(p, lexer.LPAREN)) { 
         e.url = "EMPTY - CHANGE LATER"
+        append(&p.errors, strings.clone("Empty error, not actual error"))
         return true
     }
 
@@ -224,7 +234,7 @@ parse_parameters :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
                     skip_paren(p)
                 }
                 b, s := parse_param(p)
-                if !b { fmt.printfln("Failed-----"); return false }
+                if !b { append(&p.errors, "Failed to parse param, not specific annotation: "); return false }
 
                 def := new(ast.KotlinTypeDefinition)
                 def.name = strings.clone(s)
@@ -242,7 +252,7 @@ parse_parameters :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
             }
         } else {
             b, s := parse_param(p)
-            if !b {return false }
+            if !b {append(&p.errors, "Failed to parse param, not annotation: "); return false }
             ast.highest_param(s, e)
         }
     }

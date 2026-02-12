@@ -56,6 +56,8 @@ parse_file :: proc(p: ^Parser) -> ^ast.File {
         }
 		next_token(p)
 	}
-
+	for e in p.errors {
+		fmt.printfln("%s", e)
+	}
 	return file
 }
