@@ -46,6 +46,7 @@ string_to_annotation_type :: proc(s: string) -> ast.KotlinAnnotation {
         case "GetMapping":      return ast.KotlinAnnotation.GETMAPPING
         case "RequestBody":     return ast.KotlinAnnotation.REQUESTBODY
         case "RequestParam":    return ast.KotlinAnnotation.REQUESTPARAM
+        case "PathVariable":    return ast.KotlinAnnotation.PATHVARIABLE
     }
     return ast.KotlinAnnotation.UNKNOWN
 }

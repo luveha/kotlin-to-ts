@@ -112,6 +112,7 @@ KotlinAnnotation :: enum {
     GETMAPPING,
     REQUESTBODY,
     REQUESTPARAM,
+    PATHVARIABLE,
     UNKNOWN,
 }
 /*

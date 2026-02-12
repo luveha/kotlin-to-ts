@@ -87,8 +87,7 @@ parse_get_post_mapping :: proc(p: ^Parser, e: ^ast.Endpoint, method: ast.HTTP_RE
     e.requestMethod = method
 
     if (!expect_token(p, lexer.LPAREN)) { 
-        e.url = "EMPTY - CHANGE LATER"
-        append(&p.errors, strings.clone("Empty error, not actual error"))
+        e.url = ""
         return true
     }
 

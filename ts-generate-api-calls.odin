@@ -119,7 +119,7 @@ generate_return_type :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
                 strings.write_string(b, endpoint.dto.type_params[0]) //List should always only have one typeparam, under the assumption that there is no nested
                 strings.write_string(b, "[]")
             case .ByteArray:
-                strings.write_string(b, "Test")
+                strings.write_string(b, "Blob")
             case .Struct:
                 strings.write_string(b, "DTO.")
                 strings.write_string(b, endpoint.dto.name)
@@ -174,12 +174,19 @@ generate_function_body :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     strings.write_string(b, "  })")
     
     if len(endpoint.dto.name) > 0 {
-        strings.write_string(b, ".then(x => x.data);")
+        #partial switch endpoint.dto.kotlinType {
+            case .ByteArray:
+            case:               strings.write_string(b, ".then(x => x.data);")
+        }
     }
     strings.write_string(b, "\n")
 }
 
 replace_path_variables :: proc(url: string, allocator := context.allocator) -> string {
+    if(len(url) < 1) {
+        return ""
+    }
+
     context.allocator = allocator
     
     result := strings.builder_make()
@@ -187,6 +194,10 @@ replace_path_variables :: proc(url: string, allocator := context.allocator) -> s
     
     in_brace := false
     brace_start := 0
+
+    if(url[0] != '/') {
+        strings.write_string(&result, "/")
+    }
     
     for char, i in url {
         if char == '{' {
