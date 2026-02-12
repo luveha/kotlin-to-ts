@@ -14,17 +14,18 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
     
     skip_require_access(p)
 
-    success := false
+    passed_post_mapping  := false
+    passed_request_mapping := false
     is_annotation := false
     if cur_token_is(p, lexer.ANNOTATION) {
         is_annotation = true
         #partial switch (string_utils.string_to_annotation_type(p.cur_token.literal)) {
             case .POSTMAPPING:
                 next_token(p)
-                success = parse_post_mapping(p, endp)
+                passed_post_mapping = parse_post_mapping(p, endp)
             case .REQUESTMAPPING:
                 next_token(p)
-                success = parse_request_mapping(p, endp)
+                passed_request_mapping = parse_request_mapping(p, endp)
         }   
     }
 
@@ -32,9 +33,14 @@ parse_endpoint:: proc(p: ^Parser) -> ^ast.Endpoint {
         ast.free_endpoint(endp)
         return nil
     }
-    if !success {
+    if !(passed_post_mapping || passed_request_mapping) {
         ast.free_endpoint(endp)
-        append(&p.errors, strings.concatenate({"Failed in dto: \n", "    ", string_utils.print_context_window(p.l.input, p.l.position), "\n\n"}))  
+        if(!passed_post_mapping){
+            append(&p.errors, strings.concatenate({"Failed in postmapping: \n", "    ", string_utils.print_context_window(p.l.input, p.l.position), "\n\n"}))  
+        }
+        else if (!passed_request_mapping) {
+            append(&p.errors, strings.concatenate({"Failed in requestmapping: \n", "    ", string_utils.print_context_window(p.l.input, p.l.position), "\n\n"}))  
+        }
         return nil
     }
 
@@ -77,12 +83,14 @@ parse_post_mapping :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool{
     }
 
     if(!cur_token_is(p, lexer.STRING_LIT)) {
+        append(&p.errors, "Post mapping, Expected: STRING_LIT")  
         return false
     }
     e.url = strings.clone(p.cur_token.literal)
     next_token(p)
 
     if(!expect_token(p, lexer.RPAREN)) {
+        append(&p.errors, "Post mapping, Expected: RPAREN")  
         return false
     }
 
@@ -91,22 +99,26 @@ parse_post_mapping :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool{
 
 parse_request_mapping :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
     if(!expect_token(p, lexer.LPAREN)) {
+        append(&p.errors, "Request mapping, Expected: LPAREN")  
         return false
     }
 
     skip_path_start_if_present(p)
 
     if(!cur_token_is(p, lexer.STRING_LIT)) {
+        append(&p.errors, "Request mapping, Expected: STRING_LIT")  
         return false
     }
     e.url = p.cur_token.literal
     next_token(p)
     
     if(!expect_token(p, lexer.RBRACKET)) {
+        append(&p.errors, "Request mapping, Expected: RBRACKET")
         return false
     }
     
     if(!expect_token(p, lexer.COMMA)) {
+        append(&p.errors, "Request mapping, Expected: COMMA")
         return false
     }
     
@@ -115,36 +127,44 @@ parse_request_mapping :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
 
 parse_request_method :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
     if(!expect_token_and_lit(p, lexer.IDENT, "method")) {
+        append(&p.errors, "Request method, Expected: IDENT->method")
         return false
     }
 
     if(!expect_token(p, lexer.EQUALS)) {
+        append(&p.errors, "Request method, Expected: EQUALS")
         return false
     }
 
     if(!expect_token(p, lexer.LBRACKET)) {
+        append(&p.errors, "Request method, Expected: LBRACKET")
         return false
     }
 
     if(!expect_token_and_lit(p, lexer.IDENT, "RequestMethod")) {
+        append(&p.errors, "Request method, Expected: IDENT->RequestMethod")
         return false
     }
 
     if(!expect_token(p, lexer.DOT)) {
+        append(&p.errors, "Request method, Expected: DOT")
         return false
     }
 
     if(!cur_token_is(p, lexer.IDENT)) {
+        append(&p.errors, "Request method, Expected: IDENT")
         return false
     }
     e.requestMethod = string_utils.string_to_http_type(p.cur_token.literal)
     next_token(p)
 
     if(!expect_token(p, lexer.RBRACKET)) {
+        append(&p.errors, "Request method, Expected: RBRACKET")
         return false
     }
 
     if(!expect_token(p, lexer.RPAREN)) {
+        append(&p.errors, "Request method, Expected: RPAREN")
         return false
     }
     return true
@@ -152,10 +172,12 @@ parse_request_method :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
 
 parse_function_name :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
     if(!expect_token(p, lexer.FUN)) {
+        append(&p.errors, "Function name, Expected: FUN")
         return false 
     }
 
     if(!cur_token_is(p, lexer.IDENT)) {
+        append(&p.errors, "Function name, Expected: IDENT")
         return false
     }
     e.name = p.cur_token.literal
@@ -166,6 +188,7 @@ parse_function_name :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
 
 parse_constructor :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
     if(!expect_token(p, lexer.LPAREN)) {
+        append(&p.errors, "Constructor, Expected: LPAREN")
         return false
     }
 
@@ -209,7 +232,6 @@ parse_parameters :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
                 type_params := make([dynamic]string)
 
                 e.body = def^
-                fmt.printfln("Success")
             } else {
                 next_token(p)
                 if(cur_token_is(p, lexer.LPAREN)) {
@@ -231,10 +253,12 @@ parse_parameters :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
 
 parse_param :: proc(p: ^Parser) -> (bool, string) {
     if(!expect_token(p, lexer.IDENT)) {
+        append(&p.errors, "Param, Expected: IDENT")
         return false, ""
     }
 
     if(!expect_token(p, lexer.COLON)) {
+        append(&p.errors, "Param, Expected: COLON")
         return false, ""
     }
 
@@ -246,6 +270,7 @@ parse_param :: proc(p: ^Parser) -> (bool, string) {
     
         return true, v
     }
+    append(&p.errors, "Param, Expected: IDENT or KOTLIN_PRIM")
     return false, ""
 }
 
@@ -255,12 +280,14 @@ parse_dto :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
         if(cur_token_is(p, lexer.LBRACE)) {
             return true
         }
+        append(&p.errors, "Param, Expected: LBRACE")
         return false
     }
     contains_response_entity: bool = false
     if(expect_indent_and_lit(p, "ResponseEntity")) {
         contains_response_entity = true
         if(!expect_token(p, lexer.LT)) {
+            append(&p.errors, "Param, Expected: LT")
             return false
         }
     }
@@ -295,6 +322,7 @@ parse_dto :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
 
         if(contains_response_entity) {
             if(!expect_token(p, lexer.GT)) {
+                append(&p.errors, "Param, Expected: GT")
                 return false
             }
         }

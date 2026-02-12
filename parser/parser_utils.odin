@@ -1,9 +1,11 @@
 package parser
 
 import "core:fmt"
+import "core:strings"
 
 import "../lexer"
 import "../ast"
+import "../string_utils"
 
 is_kotlin_primitive :: proc(p: lexer.Token) -> bool {
     for prim in ast.KOTLIN_PRIMITIVES {
