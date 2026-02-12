@@ -27,12 +27,12 @@ Controller :: struct {
 }
 
 Endpoint :: struct {
-    name:           string,
-    url:            string,
-    param:          QueryParam,
-    requestMethod:  HTTP_REQUEST_METHOD,
-    body:           KotlinTypeDefinition,
-    dto:            KotlinTypeDefinition,
+    name:               string,
+    url:                string,
+    injection_param:    InjectionQueryParam,
+    requestMethod:      HTTP_REQUEST_METHOD,
+    body:               KotlinTypeDefinition,
+    dto:                KotlinTypeDefinition,
 }
 
 HTTP_REQUEST_METHOD :: enum {
@@ -49,7 +49,7 @@ HTTP_REQUEST_METHOD :: enum {
     UNKNOWN
 }
 
-QueryParam :: enum {
+InjectionQueryParam :: enum {
     None,
     Firm,
     Engagement,
@@ -183,7 +183,7 @@ free_endpoint :: proc(e: ^Endpoint) {
     free(e)
 }
 
-parse_query_param :: proc(s: string) -> (QueryParam, bool) {
+parse_query_param :: proc(s: string) -> (InjectionQueryParam, bool) {
     switch s {
         case "Firm":       return .Firm, true
         case "Engagement": return .Engagement, true
@@ -198,10 +198,10 @@ highest_param :: proc(s: string, e: ^Endpoint) {
         return
     }
 
-    if int(other) < int(e.param) {
+    if int(other) < int(e.injection_param) {
         return 
     }
-    e.param = other
+    e.injection_param = other
 }
 
 freeKotlinTypeDefinition :: proc(t: ^KotlinTypeDefinition) {

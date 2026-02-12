@@ -180,6 +180,8 @@ parse_request_method :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
 }
 
 parse_function_name :: proc(p: ^Parser, e: ^ast.Endpoint) -> bool {
+    expect_token(p, lexer.SUSPEND)
+
     if(!expect_token(p, lexer.FUN)) {
         append(&p.errors, "Function name, Expected: FUN")
         return false 

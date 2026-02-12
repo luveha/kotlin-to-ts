@@ -78,7 +78,7 @@ generate_typescript_endpoint :: proc(endpoint: ^ast.Endpoint, b: ^strings.Builde
 generate_constructor :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     strings.write_string(b, "kc: string")
     
-    switch endpoint.param {
+    switch endpoint.injection_param {
         case .Firm:
             strings.write_string(b, ", firmId: string")
         case .Engagement:
@@ -224,7 +224,7 @@ generate_url_path :: proc(b: ^strings.Builder, endpoint: ^ast.Endpoint) {
     
     strings.write_string(b, url_with_vars)
     
-    switch endpoint.param {
+    switch endpoint.injection_param {
         case .Firm:
             strings.write_string(b, "?firmId=${firmId}")
         case .Engagement:

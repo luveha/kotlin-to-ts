@@ -39,6 +39,7 @@ VAL :: "Val"
 VAR :: "var"
 OVERRIDE :: "Override"
 FUN :: "fun"
+SUSPEND :: "suspend"
 
 //Kotlin class prims
 STRING :: "STRING"
@@ -68,7 +69,8 @@ build_keywords_map :: proc() -> map[string]TokenType {
         "override"  = OVERRIDE,
 		"fun"		= FUN,
 		"path"		= PATH,
-		"ByteArray" = BYTEARRAY
+		"ByteArray" = BYTEARRAY,
+		"suspend"	= SUSPEND,
     }
     
     // Add primitive types from metadata
